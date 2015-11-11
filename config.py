@@ -6,3 +6,8 @@ DEBUG = True
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 REDIS_DB = 0
+
+GCLIENT_ID = '1044070448105-4jg89ocgdsvhn8dpj38ohd3brmapf714.apps.googleusercontent.com'
+GCLIENT_SECRET = 'QhQJZ7oRibkxiJEGbDuh8luS'
+
+GOOGLE_ID = '111895036900211840391'

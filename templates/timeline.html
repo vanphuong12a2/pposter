@@ -13,7 +13,7 @@
     {% for tweet in tweets %}   
         <li>
             <strong><a href="">user</a></strong>
-            {{ tweet}}
+            {{ tweet['tweet_content'] }}
      {% else %}
          <li><em>There's no message so far.</em>
     {% endfor %}

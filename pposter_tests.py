@@ -57,5 +57,16 @@ class PposterTestCase(unittest.TestCase):
             else:
                 assert 'log in' in rv.data
 
+    def add_tweet(self, tweet_content):
+        return self.app.post('/add_tweet', data=dict(tweet=tweet_content), follow_redirects=True)
+
+    def test_timeline(self):
+        rv = self.login(pposter.app.config['USERNAME'], pposter.app.config['PASSWORD'])
+        assert "What\'s on your mind" in rv.data
+
+        rv = self.add_tweet('Test tweet')
+        assert 'Test tweet' in rv.data
+
+
 if __name__ == '__main__':
     unittest.main()
