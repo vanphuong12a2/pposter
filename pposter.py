@@ -9,13 +9,15 @@ Date: 10 Nov 2015
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
+import os
 from flask import Flask, url_for, render_template, request, redirect, flash, session
 import redis
 import time
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
 from apiclient.discovery import build
-from common import make_key
+from werkzeug import secure_filename
+from common import make_key, allowed_file
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -103,11 +105,20 @@ def add_tweet():
         tweet_id = r.incr('new_tweet_id')
         r.lpush('tweet_ids', tweet_id)
 
-        #Get img if there is
+        #Get tweet
+        #TODO: check content!!!
+        tweet_content = request.form['tweet']
         tweet_img = None
+        tweet_file = request.files['img']
+
+        #TODO: return a warning for user in case the file is illegal
+        if tweet_file and allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
+            #TODO: change to relative path
+            tweet_img = os.path.join('tmp', secure_filename(tweet_file.filename))
+            tweet_file.save(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(tweet_file.filename)))
 
         #Add tweet
-        r.hmset(make_key('tweet', tweet_id), {'tweet_content': request.form['tweet'], 'tweet_img': tweet_img, 'tweet_time': time.time()})
+        r.hmset(make_key('tweet', tweet_id), {'tweet_content': tweet_content, 'tweet_img': tweet_img, 'tweet_time': time.time()})
         return redirect(url_for('timeline'))
 
 if __name__ == '__main__':

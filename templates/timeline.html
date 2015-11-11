@@ -2,9 +2,10 @@
 {% block body %}
 <div class="twitbox">
     <h3>What's on your mind, user??</h3>
-    <form action="{{ url_for('add_tweet') }}" method=post>
+    <form action="{{ url_for('add_tweet') }}" enctype="multipart/form-data" method=post>
         <dl>
             <dt><textarea name=tweet></textarea>
+            <dt>Add img: <input type=file name=img>
             <dt><input type=submit value=Post>
         </dl>
     </form>
@@ -13,7 +14,10 @@
     {% for tweet in tweets %}   
         <li>
             <strong><a href="">user</a></strong>
-            {{ tweet['tweet_content'] }}
+            {{ tweet['tweet_content'] }} 
+            {% if tweet['tweet_img'] != "None" %}
+            <img src="{{ url_for('static', filename=tweet['tweet_img']) }}">
+             {% endif %}    
      {% else %}
          <li><em>There's no message so far.</em>
     {% endfor %}

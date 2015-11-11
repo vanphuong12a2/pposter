@@ -9,3 +9,6 @@ REDIS_DB = 0
 
 GCLIENT_SECRETS = 'static/client_secrets.json'
 GOOGLE_ID = '111895036900211840391'
+
+UPLOAD_FOLDER = 'static/tmp/'
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg'])

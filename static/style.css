@@ -111,7 +111,7 @@ div.page ul.tweets p {
 }
 
 div.page ul.tweets li img {
-    float: left;
+    float: bottom;
     padding: 0 10px 0 0;
 }
 
@@ -140,7 +140,7 @@ div.page div.twitbox p {
 div.page div.twitbox textarea {
     width: 600px;
     height: 60px;
-    margin-left: 5px;
+    /*margin-left: 5px;*/
 }
 
 div.page div.twitbox input[type="text"] {
@@ -148,7 +148,7 @@ div.page div.twitbox input[type="text"] {
 }
 
 div.page div.twitbox input[type="submit"] {
-    margin-left: 5px;
+    /*margin-left: 5px;*/
 }
 
 ul.flashes {
