@@ -12,7 +12,7 @@ Date: 10 Nov 2015
 from flask import Flask, url_for, render_template, request, redirect, flash, session
 import redis
 import time
-from oauth2client.client import OAuth2WebServerFlow
+from oauth2client.client import flow_from_clientsecrets
 import httplib2
 from apiclient.discovery import build
 from common import make_key
@@ -47,14 +47,14 @@ def login():
 
 @app.route('/google_auth')
 def google_auth():
-    flow = OAuth2WebServerFlow(client_id=app.config['GCLIENT_ID'], client_secret=app.config['GCLIENT_SECRET'], scope='profile', redirect_uri=url_for('auth_return', _external=True))
+    flow = flow_from_clientsecrets(app.config['GCLIENT_SECRETS'], scope='profile', redirect_uri=url_for('auth_return', _external=True))
     auth_uri = flow.step1_get_authorize_url()
     return redirect(auth_uri)
 
 
 @app.route('/auth_return', methods=['GET'])
 def auth_return():
-    flow = OAuth2WebServerFlow(client_id=app.config['GCLIENT_ID'], client_secret=app.config['GCLIENT_SECRET'], scope='profile', redirect_uri=url_for('auth_return', _external=True))
+    flow = flow_from_clientsecrets(app.config['GCLIENT_SECRETS'], scope='profile', redirect_uri=url_for('auth_return', _external=True))
     if 'code' in request.args:
         code = request.args.get('code')
         credentials = flow.step2_exchange(code)
