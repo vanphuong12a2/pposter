@@ -1,0 +1,8 @@
+SECRET_KEY = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
+USERNAME = 'user'
+PASSWORD = 'pass'
+DEBUG = True
+
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_DB = 0

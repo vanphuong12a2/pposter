@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="twitbox">
+    <h3>What's on your mind, user??</h3>
+    <form action="{{ url_for('add_tweet') }}" method=post>
+        <dl>
+            <dt><textarea name=tweet></textarea>
+            <dt><input type=submit value=Post>
+        </dl>
+    </form>
+</div>
+<ul class="tweets">
+    {% for tweet in tweets %}   
+        <li>
+            <strong><a href="">user</a></strong>
+            {{ tweet}}
+     {% else %}
+         <li><em>There's no message so far.</em>
+    {% endfor %}
+</ul>
+{% endblock %}

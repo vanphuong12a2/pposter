@@ -1,0 +1,172 @@
+@import url(https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600,700,300);
+body {
+    background: white;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 16px;
+}
+
+a {
+    color: #DD6F6F;
+}
+
+a:hover {
+    color: #333;
+}
+
+input[type="text"],
+input[type="password"] {
+    background: white;
+    -moz-border-radius: 0px;
+    -webkit-border-radius: 0px;
+    border-radius: 0px;
+    max-width: 300px;
+    height: 16px;
+    padding: 6px 12px;
+    font-size: 1em;
+    line-height: 1.5;
+    border: 1px solid #aaa;
+}
+
+input[type="submit"] {
+    background-color: #bb6ea8;
+    padding: 6px 20px;
+    margin: 5px 0;
+    border-radius: 0px;
+    font-size: 1em;
+    font-weight: 500;
+        color: #fff;
+}
+
+div.page {
+    background: #faecf6;
+    border: 1px solid #c1c1c1;
+    width: 700px;
+    margin: 30px auto;
+}
+
+div.page h1 {
+    background: #eccae4;
+    margin: 0;
+    padding: 10px 14px;
+    color: white;
+    letter-spacing: 1px;
+    text-shadow: 0 0 3px #666;
+    font-weight: 700;
+}
+
+div.page div.navigation {
+    background: #ffffff;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #eee;
+    color: #888;
+    font-size: 0.8em;
+    letter-spacing: 0.5px;
+}
+
+div.page div.navigation a {
+    color: #bb6ea8;
+    font-weight: bold;
+}
+
+div.page h2 {
+    margin: 0 0 15px 0;
+    color: #bb6ea8;
+    text-shadow: 0 1px 2px #ccc;
+}
+
+div.page div.body {
+    padding: 10px;
+}
+
+div.page div.footer {
+    background: #eee;
+    color: #888;
+    padding: 5px 10px;
+    font-size: 0.8em;
+}
+
+div.page div.followstatus {
+    background: #dff0d8;
+    padding: 5px 15px;
+    font-size: 0.9em;
+}
+
+div.page ul.tweets {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+div.page ul.tweets li {
+    margin: 10px 0;
+    padding: 5px;
+    background: #fff;
+    border: 1px solid #bb6ea8;
+    min-height: 48px;
+}
+
+div.page ul.tweets p {
+    margin: 0;
+}
+
+div.page ul.tweets li img {
+    float: left;
+    padding: 0 10px 0 0;
+}
+
+div.page ul.tweets li small {
+    font-size: 0.9em;
+    color: #888;
+}
+
+div.page div.twitbox {
+    margin: 10px 0;
+    padding: 5px;
+    background: #fff;
+    border: 1px solid #d79fc9;
+}
+
+div.page div.twitbox h3 {
+    margin: 0;
+    font-size: 1em;
+    /*color: #bb6ea8;*/
+}
+
+div.page div.twitbox p {
+    margin: 0;
+}
+
+div.page div.twitbox textarea {
+    width: 600px;
+    height: 60px;
+    margin-left: 5px;
+}
+
+div.page div.twitbox input[type="text"] {
+    width: 600px;
+}
+
+div.page div.twitbox input[type="submit"] {
+    margin-left: 5px;
+}
+
+ul.flashes {
+    list-style: none;
+    margin: 10px 10px 0 10px;
+    padding: 0;
+}
+
+ul.flashes li {
+    padding: 5px 15px;
+    background-color: #337ab7;
+    font-size: 0.9em;
+    color: #fff;
+}
+
+div.error {
+    margin: 10px 0;
+    padding: 5px 15px;
+    background-color: #f2dede;
+    font-size: 0.9em;
+}
