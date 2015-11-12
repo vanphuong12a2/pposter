@@ -10,7 +10,7 @@ Date: 10 Nov 2015
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 import os
-from flask import Flask, g, url_for, render_template, request, redirect, flash, session
+from flask import Flask, g, url_for, render_template, request, redirect, flash, session, jsonify
 import redis
 import time
 from oauth2client.client import flow_from_clientsecrets
@@ -18,11 +18,16 @@ import httplib2
 from apiclient.discovery import build
 from werkzeug import secure_filename
 import boto3
+import json
+from flask_jsglue import JSGlue
 from common import make_key, allowed_file, s3_put, s3_get, format_datetime
 
+jsglue = JSGlue()
 app = Flask(__name__)
+jsglue.init_app(app)
 app.config.from_object('config')
 app.config.from_envvar('PPOSTER_SETTINGS', silent=True)
+
 
 r = redis.StrictRedis(host=app.config['REDIS_HOST'], port=app.config['REDIS_PORT'], db=app.config['REDIS_DB'])
 if app.config['TEST']:
@@ -91,29 +96,47 @@ def logout():
     return redirect(url_for('do_nothing'))
 
 
+def get_tweets(r, conn, offset):
+    tweets = []
+    if offset < r.llen('tweet_ids'):
+        tweet_ids = r.lrange('tweet_ids', offset, min(offset + app.config['TWEETS_PER_PAGE'] - 1, r.llen('tweet_ids')))
+        for tid in tweet_ids:
+            tname = make_key('tweet', tid)
+            hkeys = r.hkeys(tname)
+            tweet = {}
+            for k in hkeys:
+                val = r.hmget(tname, k)[0]
+                if k == 'tweet_img' and val:
+                    if app.config['TEST']:
+                        tweet[k] = os.path.join('tmp', val)
+                    else:
+                        tweet[k] = s3_get(conn, app.config['BUCKET'], val)
+                elif k == 'tweet_time':
+                    tweet[k] = format_datetime(float(val))
+                else:
+                    tweet[k] = unicode(val, "utf8")
+            tweets.append(tweet)
+    return tweets
+
+
 @app.route('/timeline')
 def timeline():
-    tweet_ids = r.lrange('tweet_ids', 0, -1)
-    tweets = []
-    for tid in tweet_ids:
-        tname = make_key('tweet', tid)
-        hkeys = r.hkeys(tname)
-        tweet = {}
-        for k in hkeys:
-            val = r.hmget(tname, k)[0]
-            print val
-            if k == 'tweet_img' and val:
-                if app.config['TEST']:
-                    tweet[k] = os.path.join('tmp', val)
-                else:
-                    tweet[k] = s3_get(conn, app.config['BUCKET'], val)
-            elif k == 'tweet_time':
-                tweet[k] = format_datetime(float(val))
-            else:
-                tweet[k] = unicode(val, "utf8")
-        tweets.append(tweet)
+    tweets = get_tweets(r, conn, 0)
+    print len(tweets)
     #tweets = [r.hvals(make_key('tweet', tid))[0] for tid in tweet_ids]
     return render_template('timeline.html', tweets=tweets)
+
+
+@app.route('/timelinejson', methods=['GET'])
+def timelinejson():
+    print 'timelinejson'
+    if 'offset' in request.args:
+        offset = int(request.args['offset'])
+        tweets = get_tweets(r, conn, offset)
+        print(jsonify(results=tweets))
+        return json.dumps(tweets)
+    else:
+        return "No offset!"
 
 
 @app.route('/add_tweet', methods=['POST'])

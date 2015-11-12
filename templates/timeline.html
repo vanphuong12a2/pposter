@@ -29,4 +29,39 @@
          <li><em>There's no message so far.</em>
     {% endfor %}
 </ul>
+
+<div class='control'>
+    <button class="loadmore">Load more</button>
+</div>
+<script type="text/javascript">
+    jQuery(document).on('click', 'button.loadmore',function(){
+        var offset = jQuery('ul.tweets li').size();
+        jQuery.ajax({
+            url: "{{url_for('timelinejson')}}?offset=" + offset, // need to get current ids
+        }).done(function(data) {
+            if(data == '') {
+                alert('No more tweets');
+                jQuery('button.loadmore').remove();
+                return;
+                }
+        alert(data);
+        var tweets = JSON.parse(data);
+        alert(tweets);
+        jQuery.each(tweets, function(){
+            var tweet = this;
+            var img = tweet['tweet_img'];
+            var content = tweet['tweet_content'];
+            var time = tweet['tweet_time'];
+            jQuery('ul.tweets').append(getTweet(img, content, time))
+            })
+        });
+    })
+    function getTweet(src, content, time){
+        var html = '';
+        html += '<li>AJAX<strong><a href="">user</a></strong>';
+        html += content;
+        html += '<div class="tweet-image"><img src="' + src+'"></div>';
+        return html;
+    }
+</script>
 {% endblock %}
