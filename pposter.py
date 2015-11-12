@@ -117,23 +117,33 @@ def timeline():
 
 @app.route('/add_tweet', methods=['POST'])
 def add_tweet():
+    error = None
     if request.method == 'POST':
+
+        #Get tweet
+        #TODO: check content!!!
+        tweet_content = request.form['tweet']
+        if len(tweet_content) not in range(app.config['TWEET_MIN_LEN'], app.config['TWEET_MAX_LEN'] + 1):
+            error = "Tweet length error!"
+        tweet_file = request.files['img']
+        if tweet_file and not allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
+            error = "File ext not supported!"
+
+        #TODO: return a warning for user in case the file is illegal
+        if error is not None:
+            #TODO: tmp, no tweet appears here
+            return render_template("timeline.html", error=error)
+
         #Add tweet id
         if r.get('new_tweet_id') is None:
             r.set('new_tweet_id', 0)
         tweet_id = r.incr('new_tweet_id')
         r.lpush('tweet_ids', tweet_id)
 
-        #Get tweet
-        #TODO: check content!!!
-        tweet_content = request.form['tweet']
-        tweet_file = request.files['img']
-
-        #TODO: return a warning for user in case the file is illegal
-        if tweet_file and allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
+        if tweet_file:
             #TODO: change to relative path
             org_imgname = secure_filename(tweet_file.filename)
-            new_imgname = str(tweet_id) + '_' + org_imgname
+            new_imgname = "tweet" + str(tweet_id) + '.' + org_imgname.rsplit('.', 1)[1]
             if app.config['TEST']:
                 tweet_file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_imgname))
             else:

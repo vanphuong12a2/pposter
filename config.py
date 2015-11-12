@@ -17,3 +17,6 @@ UPLOAD_FOLDER = 'static/tmp/'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg'])
 
 BUCKET = 'hdems-test-01-phuong-pposter'
+
+TWEET_MAX_LEN = 250
+TWEET_MIN_LEN = 3
