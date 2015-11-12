@@ -1,0 +1,6 @@
+env/
+dump.rdb
+*.pyc
+static/tmp
+static/client_secrets.json
+*.swp
