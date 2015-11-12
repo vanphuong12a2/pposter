@@ -2,6 +2,9 @@ SECRET_KEY = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 USERNAME = 'user'
 PASSWORD = 'pass'
 DEBUG = True
+TEST = True
+HOST = '0.0.0.0'
+PORT = 8080
 
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
@@ -12,3 +15,5 @@ GOOGLE_ID = '111895036900211840391'
 
 UPLOAD_FOLDER = 'static/tmp/'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg'])
+
+BUCKET = 'hdems-test-01-phuong-pposter'

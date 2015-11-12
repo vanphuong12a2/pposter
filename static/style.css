@@ -111,7 +111,7 @@ div.page ul.tweets p {
 }
 
 div.page ul.tweets li img {
-    float: bottom;
+    max-width: 200px;
     padding: 0 10px 0 0;
 }
 
@@ -169,4 +169,27 @@ div.error {
     padding: 5px 15px;
     background-color: #f2dede;
     font-size: 0.9em;
+}
+
+button.loadmore{
+        background-color: #bb6ea8;
+    padding: 6px 20px;
+    margin: 5px 0;
+    border-radius: 0px;
+    font-size: 1em;
+    font-weight: 500;
+    color: #fff;
+}
+.tweet-image, .control{
+    text-align: center;
+}
+
+a.google {
+       background-image: url('https://developers.google.com/identity/images/sign-in-with-google.png');
+    text-indent: -9999px;
+    display: inline-block;
+    width: 180px;
+    height: 40px;
+    background-size: contain;
+    background-repeat: no-repeat;
 }

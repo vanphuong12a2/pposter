@@ -10,20 +10,30 @@ Date: 10 Nov 2015
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 import os
-from flask import Flask, url_for, render_template, request, redirect, flash, session
+from flask import Flask, g, url_for, render_template, request, redirect, flash, session
 import redis
 import time
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
 from apiclient.discovery import build
 from werkzeug import secure_filename
-from common import make_key, allowed_file
+import boto3
+from common import make_key, allowed_file, s3_put, s3_get
 
 app = Flask(__name__)
 app.config.from_object('config')
 app.config.from_envvar('PPOSTER_SETTINGS', silent=True)
 
 r = redis.StrictRedis(host=app.config['REDIS_HOST'], port=app.config['REDIS_PORT'], db=app.config['REDIS_DB'])
+if app.config['TEST']:
+    conn = None
+else:
+    conn = boto3.resource('s3')
+
+
+@app.before_request
+def before_request():
+    g.test = app.config['TEST']
 
 
 @app.route('/')
@@ -90,7 +100,14 @@ def timeline():
         hkeys = r.hkeys(tname)
         tweet = {}
         for k in hkeys:
-            tweet[k] = r.hmget(tname, k)[0]
+            val = r.hmget(tname, k)[0]
+            if k == 'tweet_img' and val:
+                if app.config['TEST']:
+                    tweet[k] = os.path.join('tmp', val)
+                else:
+                    tweet[k] = s3_get(conn, app.config['BUCKET'], val)
+            else:
+                tweet[k] = val
         tweets.append(tweet)
     #tweets = [r.hvals(make_key('tweet', tid))[0] for tid in tweet_ids]
     return render_template('timeline.html', tweets=tweets)
@@ -108,18 +125,25 @@ def add_tweet():
         #Get tweet
         #TODO: check content!!!
         tweet_content = request.form['tweet']
-        tweet_img = None
         tweet_file = request.files['img']
 
         #TODO: return a warning for user in case the file is illegal
         if tweet_file and allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
             #TODO: change to relative path
-            tweet_img = os.path.join('tmp', secure_filename(tweet_file.filename))
-            tweet_file.save(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(tweet_file.filename)))
-
-        #Add tweet
-        r.hmset(make_key('tweet', tweet_id), {'tweet_content': tweet_content, 'tweet_img': tweet_img, 'tweet_time': time.time()})
+            org_imgname = secure_filename(tweet_file.filename)
+            new_imgname = str(tweet_id) + '_' + org_imgname
+            if app.config['TEST']:
+                tweet_file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_imgname))
+            else:
+                s3_put(conn, app.config['BUCKET'], new_imgname, tweet_file)
+            #Add tweet
+            r.hmset(make_key('tweet', tweet_id), {'tweet_content': tweet_content, 'tweet_img': new_imgname, 'tweet_time': time.time()})
+        else:
+            r.hmset(make_key('tweet', tweet_id), {'tweet_content': tweet_content, 'tweet_time': time.time()})
         return redirect(url_for('timeline'))
 
 if __name__ == '__main__':
-    app.run(debug=app.config['DEBUG'])
+    if app.config['TEST']:
+        app.run(debug=app.config['DEBUG'])
+    else:
+        app.run(host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])

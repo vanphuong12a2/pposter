@@ -15,9 +15,15 @@
         <li>
             <strong><a href="">user</a></strong>
             {{ tweet['tweet_content'] }} 
-            {% if tweet['tweet_img'] != "None" %}
-            <img src="{{ url_for('static', filename=tweet['tweet_img']) }}">
-             {% endif %}    
+            {% if tweet['tweet_img']  %}
+                <div class="tweet-image">
+                    {% if g.test %}
+                        <img src="{{ url_for('static', filename=tweet['tweet_img']) }}">
+                    {% else %}
+                        <img src="data:image/jpeg;base64,{{tweet['tweet_img']}}"/>    
+                    {% endif %}
+                </div>    
+            {% endif %}    
      {% else %}
          <li><em>There's no message so far.</em>
     {% endfor %}
