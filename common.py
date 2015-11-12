@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 
 
 def make_key(ktype, val):
@@ -7,6 +8,11 @@ def make_key(ktype, val):
 
 def allowed_file(filename, exts):
     return '.' in filename and filename.rsplit('.', 1)[1] in exts
+
+
+def format_datetime(timestamp):
+    """Format a timestamp for display."""
+    return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d @ %H:%M')
 
 
 def s3_put(conn, bucket, filename, content):

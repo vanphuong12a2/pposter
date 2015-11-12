@@ -14,6 +14,7 @@
     {% for tweet in tweets %}   
         <li>
             <strong><a href="">user</a></strong>
+            <small>{{ tweet['tweet_time'] }}</small>
             {{ tweet['tweet_content'] }} 
             {% if tweet['tweet_img']  %}
                 <div class="tweet-image">

@@ -18,7 +18,7 @@ import httplib2
 from apiclient.discovery import build
 from werkzeug import secure_filename
 import boto3
-from common import make_key, allowed_file, s3_put, s3_get
+from common import make_key, allowed_file, s3_put, s3_get, format_datetime
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -106,6 +106,8 @@ def timeline():
                     tweet[k] = os.path.join('tmp', val)
                 else:
                     tweet[k] = s3_get(conn, app.config['BUCKET'], val)
+            elif k == 'tweet_time':
+                tweet[k] = format_datetime(float(val))
             else:
                 tweet[k] = val
         tweets.append(tweet)
