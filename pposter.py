@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# -*- coding: utf-8 -*-
 """
 This is the 1st assignment in the Global Internship Program at HDE. The target is a Twitter clone with basic functions.
 Project name: pposter
@@ -101,6 +101,7 @@ def timeline():
         tweet = {}
         for k in hkeys:
             val = r.hmget(tname, k)[0]
+            print val
             if k == 'tweet_img' and val:
                 if app.config['TEST']:
                     tweet[k] = os.path.join('tmp', val)
@@ -109,7 +110,7 @@ def timeline():
             elif k == 'tweet_time':
                 tweet[k] = format_datetime(float(val))
             else:
-                tweet[k] = val
+                tweet[k] = unicode(val, "utf8")
         tweets.append(tweet)
     #tweets = [r.hvals(make_key('tweet', tid))[0] for tid in tweet_ids]
     return render_template('timeline.html', tweets=tweets)
