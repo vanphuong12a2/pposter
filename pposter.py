@@ -41,7 +41,7 @@ def before_request():
     g.test = app.config['TEST']
     g.curr_user = None
     if 'user_id' in session:
-        g.curr_user = (model.get_username(session['user_id']), model.get_userlink(session['user_id']))
+        g.curr_user = {'name': model.get_username(session['user_id']), 'link': model.get_userlink(session['user_id'])}
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -127,7 +127,7 @@ def timeline():
     if g.curr_user is not None:
         lusers = None
         tweets = model.get_tweets(lusers=lusers, offset=0)
-        return render_template('timeline.html', tweets=tweets)
+        return render_template('timeline.html', tweets=tweets, more_tweet=True)
     else:
         return render_template('layout.html')
 
@@ -155,7 +155,7 @@ def user_timelinejson(userlink):
             tweets = model.get_tweets(lusers=[uid], offset=offset)
             return json.dumps(tweets)
         else:
-            return redirect(url_for('user_timeline', userlink=g.curr_user[1]))
+            return redirect(url_for('user_timeline', userlink=g.curr_user[1]), more_tweet=True)
     else:
         abort(404)
 
@@ -167,10 +167,28 @@ def user_timeline(userlink):
     uid = model.get_userid(userlink)
     if model.is_registered(uid):
         tweets = model.get_tweets(lusers=[uid], offset=0)
-        return render_template('timeline.html', tweets=tweets)
+        return render_template('timeline.html', tweets=tweets, timelineowner=userlink, more_tweet=True)
     else:
         flash("There is no user with that id")
         return redirect(url_for('timeline'))
+
+
+@app.route('/<userlink>/follow')
+def follow(userlink):
+    if g.curr_user is None:
+        return render_template('login.html')
+    uid = model.get_userid(userlink)
+    model.add_follower(session['user_id'], uid)
+    return redirect(url_for('user_timeline', userlink=userlink))
+
+
+@app.route('/<userlink>/unfollow')
+def unfollow(userlink):
+    if g.curr_user is None:
+        return render_template('login.html')
+    uid = model.get_userid(userlink)
+    model.remove_follower(session['user_id'], uid)
+    return redirect(url_for('user_timeline', userlink=userlink))
 
 
 @app.route('/public')
@@ -184,7 +202,7 @@ def public_timeline():
 def add_tweet(userlink=None):
     if g.curr_user is None:
         return render_template('login.html')
-    if userlink is not None and userlink != g.curr_user[1]:
+    if userlink is not None and userlink != g.curr_user['link']:
         return "Illegal post"
     if request.method == 'POST':
         #Get tweet

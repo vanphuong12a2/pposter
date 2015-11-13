@@ -17,7 +17,7 @@ USER_JOINED = 'user_joined'
 USER_LINK = 'user_link'
 USER_TWEETS = 'user_tweets'
 USER_FOLLOWINGS = 'user_followings'
-USER_FOLLOWEDS = 'user_followed'
+USER_FOLLOWERS = 'user_followers'
 USER_PASS = 'user_pass'
 
 HUSERLINK = 'userlink_id_hash'
@@ -114,7 +114,7 @@ class RedisModel(object):
     def add_user(self, email, name, password=None, img=None):
         joined = time.time()
         userlink = self.set_new_userlink()
-        self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_LINK: userlink})
+        self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_LINK: userlink, USER_FOLLOWERS: [], USER_FOLLOWINGS: []})
         self.r.lpush(USERS, email)
         self.r.hset(HUSERLINK, userlink, email)
         return email
@@ -131,3 +131,13 @@ class RedisModel(object):
 
     def get_userlink(self, uid):
         return self.r.hmget(get_user_hkey(uid), USER_LINK)[0]
+
+    def add_follower(self, follower, followee):
+        if follower == followee:
+            return 0
+        else:
+            tmp1 = self.r.hmget(get_user_hkey(follower), USER_FOLLOWINGS)[0]
+            self.r.hmset(get_user_hkey(follower), {USER_FOLLOWINGS: tmp1 + [followee]})
+            tmp2 = self.r.hmget(get_user_hkey(followee), USER_FOLLOWERS)[0]
+            self.r.hmset(get_user_hkey(followee), {USER_FOLLOWERS: tmp2 + [follower]})
+            return 1

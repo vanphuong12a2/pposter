@@ -9,9 +9,10 @@
         {% if not g.curr_user %}
             <a href="{{ url_for('login') }}">log in</a>
             <a href="{{ url_for('google_auth') }}">log in with google</a>
-            <a href="{{ url_for('register') }}">register</a>   
-        {% else %}
-        Welcome, <a href="{{ url_for('user_timeline', userlink=g.curr_user[1])}}">{{ g.curr_user[0] }}</a>
+            <a href="{{ url_for('register') }}">register</a>
+        {% endif %}   
+        {% if g.curr_user %}
+        Welcome, <a href="{{ url_for('user_timeline', userlink=g.curr_user['link'])}}">{{ g.curr_user['name'] }}</a>
         <a href="{{ url_for('timeline') }}">home</a>
         <a href="{{ url_for('logout') }}">log out</a>
         {% endif %}

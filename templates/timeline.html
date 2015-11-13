@@ -1,24 +1,36 @@
 {% extends "layout.html" %}
 {% block body %}
-{% if request.endpoint == 'user_timeline' %}
-<div class="twitbox"> This place is for personal information</div>
-{% endif %}
-{% if request.endpoint != 'public_timeline' %}
-<div class="twitbox">
-    <h3>What's on your mind, {{ g.curr_user[0] }}??</h3>
-    <form action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_tweet', userlink=g.curr_user[1]) }} {% else %} {{ url_for('add_tweet') }} {% endif %} " enctype="multipart/form-data" method=post>
-        <dl>
-            <dt><textarea name=tweet></textarea>
-            <dt>Add img: <input type=file name=img>
-            <dt><input type=submit value=Post>
-        </dl>
-    </form>
-</div>
+{% if g.curr_user %}
+    {% if request.endpoint == 'user_timeline' %}
+        {% if g.curr_user['link'] == timelineowner %}
+            <h2>My homepage</h2>
+        {% else %}
+            <h2>{{timelineowner}}'s homepage</h2>
+            {% if followed %}
+                <a href="{{url_for('unfollow',userlink=timelineowner)}}">unfollow</a>
+            {% else %}
+                <a href="{{url_for('follow',userlink=timelineowner)}}">follow</a>
+            {% endif %}
+        {% endif %}        
+        <div class="twitbox"> This place is for personal information</div>
+    {% endif %}
+    {% if request.endpoint != 'public_timeline' %}
+        <div class="twitbox">
+            <h3>What's on your mind, {{ g.curr_user['name'] }}??</h3>
+            <form action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_tweet', userlink=g.curr_user['link']) }} {% else %} {{ url_for('add_tweet') }} {% endif %} " enctype="multipart/form-data" method=post>
+                <dl>
+                    <dt><textarea name=tweet></textarea>
+                    <dt>Add img: <input type=file name=img>
+                    <dt><input type=submit value=Post>
+                </dl>
+            </form>
+        </div>
+        {% endif %}
 {% endif %}
 <ul class="tweets">
     {% for tweet in tweets %}   
         <li>
-        <strong><a href="{{ url_for('user_timeline', userlink='vp') }}">{{ tweet['username'] }}</a></strong>
+        <strong><a href="{{ url_for('user_timeline', userlink=tweet['userlink']) }}">{{ tweet['username'] }}</a></strong>
             <small>{{ tweet['tweet_time'] }}</small>
             {{ tweet['tweet_content'] }} 
             {% if tweet['tweet_img']  %}
@@ -34,10 +46,11 @@
          <li><em>There's no message so far.</em>
     {% endfor %}
 </ul>
-
+{% if more_tweet %}
 <div class='control'>
     <button class="loadmore">Load more</button>
 </div>
+{% endif %}
 <script type="text/javascript">
     jQuery(document).on('click', 'button.loadmore',function(){
         var offset = jQuery('ul.tweets li').size();
