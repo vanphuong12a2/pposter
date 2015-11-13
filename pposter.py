@@ -86,7 +86,7 @@ def register():
 def google_auth():
     if g.curr_user is not None:
         return redirect(url_for('timeline'))
-    flow = flow_from_clientsecrets(app.config['GCLIENT_SECRETS'], scope='profile', redirect_uri=url_for('auth_return', _external=True))
+    flow = flow_from_clientsecrets(app.config['GCLIENT_SECRETS'], scope='profile email', redirect_uri=url_for('auth_return', _external=True))
     auth_uri = flow.step1_get_authorize_url()
     return redirect(auth_uri)
 
@@ -103,8 +103,10 @@ def auth_return():
         http = credentials.authorize(http)
         service = build('plus', 'v1', http=http)
         user_info = service.people().get(userId='me').execute()
+        print user_info
         if user_info['id'] == app.config['GOOGLE_ID']:
-            session['user_id'] = user_info['email']  # Need to be checked
+            session['user_id'] = user_info['emails'][0]['value']  # Need to be checked
+            model.add_user(session['user_id'], user_info['name']['givenName'])
             flash("You were logged in!")
             return redirect(url_for('timeline'))
         else:
@@ -184,19 +186,14 @@ def add_tweet(userlink=None):
         return render_template('login.html')
     if userlink is not None and userlink != g.curr_user[1]:
         return "Illegal post"
-    error = None
     if request.method == 'POST':
         #Get tweet
         tweet_content = request.form['tweet']
         if len(tweet_content) not in range(app.config['TWEET_MIN_LEN'], app.config['TWEET_MAX_LEN'] + 1):
-            error = "Tweet length error!"
+            return render_template("timeline.html", error="Tweet length error!")
         tweet_file = request.files['img']
         if tweet_file and not allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
-            error = "File ext not supported!"
-
-        if error is not None:
-            #TODO: tmp, no tweet appears here
-            return render_template("timeline.html", error=error)
+            return render_template("timeline.html", error="File ext not supported!")
 
         new_imgname = None
         if tweet_file:

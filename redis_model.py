@@ -111,7 +111,7 @@ class RedisModel(object):
     def is_registered(self, email):
         return email in self.r.lrange(USERS, 0, -1)
 
-    def add_user(self, email, name, password, img=None):
+    def add_user(self, email, name, password=None, img=None):
         joined = time.time()
         userlink = self.set_new_userlink()
         self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_LINK: userlink})
