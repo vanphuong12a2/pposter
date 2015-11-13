@@ -1,8 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
+{% if request.endpoint == 'user_timeline' %}
+<div class="twitbox"> This place is for personal information</div>
+{% endif %}
+{% if request.endpoint != 'public_timeline' %}
 <div class="twitbox">
-    <h3>What's on your mind, user??</h3>
-    <form action="{{ url_for('add_tweet') }}" enctype="multipart/form-data" method=post>
+    <h3>What's on your mind, {{ g.curr_user[0] }}??</h3>
+    <form action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_tweet', userlink=g.curr_user[1]) }} {% else %} {{ url_for('add_tweet') }} {% endif %} " enctype="multipart/form-data" method=post>
         <dl>
             <dt><textarea name=tweet></textarea>
             <dt>Add img: <input type=file name=img>
@@ -10,10 +14,11 @@
         </dl>
     </form>
 </div>
+{% endif %}
 <ul class="tweets">
     {% for tweet in tweets %}   
         <li>
-            <strong><a href="">user</a></strong>
+        <strong><a href="{{ url_for('user_timeline', userlink='vp') }}">{{ tweet['username'] }}</a></strong>
             <small>{{ tweet['tweet_time'] }}</small>
             {{ tweet['tweet_content'] }} 
             {% if tweet['tweet_img']  %}
