@@ -133,7 +133,7 @@ def timelinejson():
     if g.curr_user is None:
         return render_template('login.html')
     if 'offset' in request.args:
-        lusers = model.get_following_ids(session['user_id']) + [session['uid']]
+        lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
         offset = int(request.args['offset'])
         tweets, more_tweet = model.get_tweets(lusers=lusers, offset=offset)
         return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
@@ -148,11 +148,8 @@ def user_timeline(useralias):
     uid = model.get_userid(useralias)
     if model.is_registered(uid):
         tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0)
-        followed = model.check_followed(session['user_id'], uid)
-        timelineowner = {'name': model.get_username(uid), 'alias': useralias, 'followed': followed}
-        if uid == session['user_id']:
-            timelineowner['followers'] = model.get_followers(uid)
-            timelineowner['followings'] = model.get_followings(uid)
+        timelineowner = model.get_user_info(uid)
+        timelineowner['followed'] = model.check_followed(session['user_id'], uid)
         return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet)
     else:
         flash("There is no user with that id")

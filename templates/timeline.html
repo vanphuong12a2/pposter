@@ -5,18 +5,26 @@
         {% if request.endpoint == 'user_timeline' %}
         <div class="col-md-12">
             <h2>{{timelineowner['name']}}</h2>   
-            {% if g.curr_user['alias'] != timelineowner['alias'] %}
+            {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
                 {% if timelineowner['followed'] %}
-                <a class='follow' href="{{url_for('unfollow',useralias=timelineowner['alias'])}}">unfollow</a>
+                <a class='follow' href="{{url_for('unfollow',useralias=timelineowner['user_alias'])}}">unfollow</a>
                 {% else %}
-                <a class='follow' href="{{url_for('follow',useralias=timelineowner['alias'])}}">follow</a>
+                <a class='follow' href="{{url_for('follow',useralias=timelineowner['user_alias'])}}">follow</a>
                 {% endif %}
             {% endif %}
         </div> 
         <div class="col-md-3 col-sm-3 col-xs-12">
             <div class="col-md-12 avatar">
-                <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                {% if g.curr_user['alias'] == timelineowner['alias'] %}
+                {% if timelineowner['user_img'] %}
+                    {% if g.test %}
+                        <img class="img-responsive" src="{{ url_for('static', filename=timelineowner['user_img']) }}">
+                    {% else %}
+                        <img class="img-responsive" src="data:image/jpeg;base64,{{timelineowner['user_img']}}"/>
+                    {% endif %}
+                {% else %}
+                    <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
+                {% endif%}    
+                {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
                     <a href="javascript:void(0)">Change avatar</a>
                 {% endif %}
             </div>
@@ -24,9 +32,14 @@
         <div class="col-md-9">
             <div class="row userinfo">
                 <div class="col-md-12">
-                    USer1001@user1.com
+                    <dl>
+                        <dt>Joined: <dd>{{timelineowner['user_joined']}}
+                        <dt>Email: <dd>{{timelineowner['user_id']}}
+                        <dt>Username:<dd>{{timelineowner['user_name']}}
+                        <dt>Alias: <dd>{{timelineowner['user_alias']}}
+                    </dl>
                 </div>
-                {% if g.curr_user['alias'] != timelineowner['alias'] %}
+                {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
             </div>
                 {% else %}
                 <div class="col-md-12">
@@ -34,9 +47,15 @@
                 </div>
             </div>
             <div class="row userform">
+                <dl>
+                    <dt>Joined: <dd>{{timelineowner['user_joined']}}
+                    <dt>Email: <dd>{{timelineowner['user_id']}}
+                </dl>    
                 <form class="col-md-12" action="url_for('update_user')">
-                    <input type="text" name="username" placeholder="user alias" />
-                    <input type="text" name="status" placeholder="status" />
+                    <dl>
+                        <dt>Username:<dd><input type="text" name="username" placeholder="user alias" />
+                        <dt>Alias:<dd><input type="text" name="status" placeholder="status" />
+                    </dl>    
                     <div>
                         <input class="btn" type="submit" value="submit" />
                         <input class="btn" type="button" onclick="cancelUpdateUserinfo()" value="cancel" />
@@ -48,7 +67,7 @@
         {% endif %}
     {% endif %}
 </div>
-{% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['alias'] %}
+{% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias'] %}
 <div class="row">
     <ul class="tweets-controls nav nav-tabs" role="tablist">
         <li role="presentation" class="active"><a href="#tweets-data" aria-controls="tweets-data" role="tab" data-toggle  ="tab">Tweets</a></li>
@@ -65,7 +84,7 @@
 {% endif %}
 <div class="tab-content">
     <div id="tweets-data" class="tab-pane active">
-        {% if request.endpoint == 'timeline' or (request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['alias']) %}
+        {% if request.endpoint == 'timeline' or (request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias']) %}
             <div class="twitbox">
                 <h3>What's on your mind, {{ g.curr_user['name'] }}??</h3>
                 <form action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_tweet', useralias=g.curr_user['alias']) }} {% else %} {{ url_for('add_tweet') }} {% endif %} " enctype="multipart/form-data" method=post>
@@ -94,7 +113,7 @@
             {% endif %}
             {% if request.endpoint != 'public_timeline' and tweet['useralias'] == g.curr_user['alias'] %}
                 {% if request.endpoint == 'user_timeline' %}
-                <a class="remove-post"  href="{{url_for('remove_tweet', useralias=timelineowner['alias'],tweet_id=tweet['tweet_id'])}}">del</a>
+                <a class="remove-post"  href="{{url_for('remove_tweet', useralias=timelineowner['user_alias'],tweet_id=tweet['tweet_id'])}}">del</a>
                 {% else %}    
                 <a class="remove-post"  href="{{url_for('remove_tweet', tweet_id=tweet['tweet_id'])}}">del</a>
                 {% endif %}    
@@ -109,7 +128,7 @@
         </div>
         {% endif %}
     </div>
-    {% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['alias']%}
+    {% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias']%}
     <div role="tabpanel" class="tab-pane" id="following">
         <div class="user">
             {% for fol in timelineowner['followings'] %}
@@ -164,15 +183,18 @@
                 jQuery('button.loadmore').remove();
                 return;
                 }
-        alert(data);
-        var tweets = JSON.parse(data);
-        alert(tweets);
+        var hdata = JSON.parse(data);
+        var tweets = hdata['tweets']
+        var more_tweet = hdata['more_tweet']
         jQuery.each(tweets, function(){
             var tweet = this;
             var img = tweet['tweet_img'];
             var content = tweet['tweet_content'];
             var time = tweet['tweet_time'];
             jQuery('ul.tweets').append(getTweet(img, content, time))
+            if(more_tweet == '0'){
+                jQuery('button.loadmore').remove()
+            }
             })
         });
     })

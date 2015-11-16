@@ -20,4 +20,4 @@ BUCKET = 'hdems-test-01-phuong-pposter'
 
 TWEET_MAX_LEN = 250
 TWEET_MIN_LEN = 3
-TWEETS_PER_PAGE = 20
+TWEETS_PER_PAGE = 5

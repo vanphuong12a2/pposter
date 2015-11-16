@@ -156,13 +156,15 @@ class RedisModel(object):
         tweet_ids = self.r.lrange(TWEETS, 0, -1)
         if lusers is not None:
             tweet_ids = [tid for tid in tweet_ids if self.r.hget(get_tweet_hkey(tid), TWEET_USER) in lusers]
+        more_tweet = False
         if offset is not None:
             offset_end = offset + self.config['TWEETS_PER_PAGE']
+            more_tweet = offset_end < len(tweet_ids)
             tweet_ids = tweet_ids[offset:offset_end]
         for tid in tweet_ids:
             tweet = self.get_tweet(tid)
             twits.append(tweet)
-        return (twits, len(tweet_ids) > self.config['TWEETS_PER_PAGE'])
+        return (twits, more_tweet)
 
     def is_registered(self, email):
         return email in self.r.lrange(USERS, 0, -1)
@@ -205,7 +207,7 @@ class RedisModel(object):
             return None
 
     def get_user_info(self, uid):
-        user = {}
+        user = {'user_id': uid}
         hkeys = self.r.hkeys(get_user_hkey(uid))
         for k in hkeys:
             val = self.r.hget(get_user_hkey(uid), k)
@@ -215,6 +217,8 @@ class RedisModel(object):
                 user[k] = self.get_user_img(uid)
             else:
                 user[k] = unicode(val, "utf8")
+        user['followers'] = self.get_followers(uid)
+        user['followings'] = self.get_followings(uid)
         return user
 
     def get_user_basicinfo(self, uid):
