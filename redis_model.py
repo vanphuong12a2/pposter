@@ -2,6 +2,7 @@ import base64
 import os
 import common
 import time
+from werkzeug import secure_filename
 
 NEW_TWEET_ID = 'new_tweet_id'
 TWEETS = 'tweet_ids'
@@ -14,14 +15,17 @@ USERS = 'user_emails'
 USER_NAME = 'user_name'
 USER_IMG = 'user_img'
 USER_JOINED = 'user_joined'
-USER_LINK = 'user_link'
+USER_ALIAS = 'user_alias'
 USER_TWEETS = 'user_tweets'
-USER_FOLLOWINGS = 'user_followings'
-USER_FOLLOWERS = 'user_followers'
 USER_PASS = 'user_pass'
 
-HUSERLINK = 'userlink_id_hash'
-NEW_USERLINK = 'new_userlink'
+HUSERALIAS = 'useralias_id_hash'
+NEW_USERALIAS = 'new_useralias'
+
+NEW_COMMENT_ID = 'new_comment_id'
+COMMENT_USER = 'comment_user'
+COMMENT_CONTENT = 'comment_content'
+COMMENT_TIME = 'comment_time'
 
 
 def get_tweet_hkey(tweet_id):
@@ -30,6 +34,22 @@ def get_tweet_hkey(tweet_id):
 
 def get_user_hkey(user_email):
     return "user:" + user_email
+
+
+def get_user_followers_hkey(userid):
+    return "followers:" + userid
+
+
+def get_user_followings_hkey(userid):
+    return "followings:" + str(userid)
+
+
+def get_tweet_comments_list(tweet_id):
+    return "comments:" + str(tweet_id)
+
+
+def get_comment_hkey(cmt_id):
+    return "cmt:" + str(cmt_id)
 
 
 class RedisModel(object):
@@ -59,28 +79,64 @@ class RedisModel(object):
             return 1
         return self.r.get(NEW_TWEET_ID)
 
-    def set_new_userlink(self):
-        if self.r.get(NEW_USERLINK) is None:
-            self.r.set(NEW_USERLINK, 1000)
-        return "user" + str(self.r.incr(NEW_USERLINK))
+    def set_new_useralias(self):
+        if self.r.get(NEW_USERALIAS) is None:
+            self.r.set(NEW_USERALIAS, 1000)
+        return "user" + str(self.r.incr(NEW_USERALIAS))
 
     def add_tweet(self, content, user, img=None):
         tweet_id = self.set_new_tweet_id()
         ttime = time.time()
-        print content, user
         if img is not None:
-            self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_CONTENT: content, TWEET_TIME: ttime, TWEET_USER: user, TWEET_IMG: img})
-        else:
-            self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_CONTENT: content, TWEET_TIME: ttime, TWEET_USER: user})
+            new_imgname = None
+            org_imgname = secure_filename(img.filename)
+            new_imgname = "tweet" + str(tweet_id) + '.' + org_imgname.rsplit('.', 1)[1]
+            if self.config['TEST']:
+                img.save(os.path.join(self.config['UPLOAD_FOLDER'], new_imgname))
+            else:
+                self.s3_put(self.config['BUCKET'], new_imgname, img)
+            self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_IMG: new_imgname})
+        self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_CONTENT: content, TWEET_TIME: ttime, TWEET_USER: user})
         self.r.lpush(TWEETS, tweet_id)
         return tweet_id
+
+    def get_comment_ids(self, tweet_id):
+        return self.r.lrange(get_tweet_comments_list(tweet_id), 0, -1)
+
+    def get_comments(self, tweet_id):
+        comments = []
+        for cmt_id in self.get_comment_ids(tweet_id):
+            cmt = {}
+            hkeys = self.r.hkeys(get_comment_hkey(cmt_id))
+            for k in hkeys:
+                val = self.r.hget(get_comment_hkey(cmt_id), k)
+                if k == COMMENT_TIME:
+                    cmt[k] = common.format_datetime(float(val))
+                else:
+                    cmt[k] = unicode(val, "utf8")
+            comments.append(cmt)
+        return comments
+
+    def remove_tweet(self, tweet_id):
+        #remove comment => remove the img => remove tweet => pop out the tweet list
+        for cmt_id in self.get_comment_ids(tweet_id):
+            self.remove_comment(cmt_id)
+        tweet_img = self.r.hget(get_tweet_hkey(tweet_id), TWEET_IMG)
+        if tweet_img:
+            if self.config['TEST']:
+                pass
+            else:
+                self.s3_delete(os.path.join(self.config['UPLOAD_FOLDER'], tweet_img))
+        self.r.delete(get_tweet_hkey(tweet_id))
+        self.r.lrem(TWEETS, 0, tweet_id)
+        return 1
 
     def get_tweet(self, tweet_id):
         tname = get_tweet_hkey(tweet_id)
         hkeys = self.r.hkeys(tname)
-        tweet = {}
+        tweet = {'tweet_id': tweet_id}
         for k in hkeys:
-            val = self.r.hmget(tname, k)[0]
+            val = self.r.hget(tname, k)
             if k == TWEET_IMG and val:
                 if self.config['TEST']:
                     tweet[k] = os.path.join('tmp', val)
@@ -92,52 +148,129 @@ class RedisModel(object):
                 tweet[k] = unicode(val, "utf8")
             if k == TWEET_USER:
                 tweet['username'] = self.get_username(val)
-                tweet['userlink'] = self.get_userlink(val)
+                tweet['useralias'] = self.get_useralias(val)
         return tweet
 
     def get_tweets(self, lusers=None, offset=None):
         twits = []
         tweet_ids = self.r.lrange(TWEETS, 0, -1)
         if lusers is not None:
-            tweet_ids = [tid for tid in tweet_ids if self.r.hmget(get_tweet_hkey(tid), TWEET_USER)[0] in lusers]
+            tweet_ids = [tid for tid in tweet_ids if self.r.hget(get_tweet_hkey(tid), TWEET_USER) in lusers]
         if offset is not None:
             offset_end = offset + self.config['TWEETS_PER_PAGE']
             tweet_ids = tweet_ids[offset:offset_end]
         for tid in tweet_ids:
             tweet = self.get_tweet(tid)
             twits.append(tweet)
-        return twits
+        return (twits, len(tweet_ids) > self.config['TWEETS_PER_PAGE'])
 
     def is_registered(self, email):
         return email in self.r.lrange(USERS, 0, -1)
 
     def add_user(self, email, name, password=None, img=None):
         joined = time.time()
-        userlink = self.set_new_userlink()
-        self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_LINK: userlink, USER_FOLLOWERS: [], USER_FOLLOWINGS: []})
+        useralias = self.set_new_useralias()
+        self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_ALIAS: useralias})
         self.r.lpush(USERS, email)
-        self.r.hset(HUSERLINK, userlink, email)
+        self.r.hset(HUSERALIAS, useralias, email)
         return email
 
+    def add_user_avatar(self, uid, avatar):
+        self.r.hmset(get_user_hkey(uid), {USER_IMG: avatar})
+
     def is_valid_user(self, email, password):
-        stored_pass = self.r.hmget(get_user_hkey(email), USER_PASS)[0]
+        stored_pass = self.r.hget(get_user_hkey(email), USER_PASS)
         return stored_pass == password
 
     def get_username(self, uid):
-        return self.r.hmget(get_user_hkey(uid), USER_NAME)[0]
+        return self.r.hget(get_user_hkey(uid), USER_NAME)
 
-    def get_userid(self, userlink):
-        return self.r.hget(HUSERLINK, userlink)
+    def get_userid(self, useralias):
+        return self.r.hget(HUSERALIAS, useralias)
 
-    def get_userlink(self, uid):
-        return self.r.hmget(get_user_hkey(uid), USER_LINK)[0]
+    def get_useralias(self, uid):
+        return self.r.hget(get_user_hkey(uid), USER_ALIAS)
+
+    def check_alias(self, alias):
+        return alias in self.r.hkeys(HUSERALIAS)
+
+    def get_user_img(self, uid):
+        user_img = self.r.hget(get_user_hkey(uid), USER_IMG)
+        if user_img:
+            if self.config['TEST']:
+                return os.path.join('tmp', self.r.hget(get_user_hkey(uid), USER_IMG))
+            else:
+                return self.s3_get(self.config['BUCKET'], self.r.hget(get_user_hkey(uid), USER_IMG))
+        else:
+            return None
+
+    def get_user_info(self, uid):
+        user = {}
+        hkeys = self.r.hkeys(get_user_hkey(uid))
+        for k in hkeys:
+            val = self.r.hget(get_user_hkey(uid), k)
+            if k == USER_JOINED:
+                user[k] = common.format_datetime(float(val))
+            elif k == USER_IMG:
+                user[k] = self.get_user_img(uid)
+            else:
+                user[k] = unicode(val, "utf8")
+        return user
+
+    def get_user_basicinfo(self, uid):
+        user = {}
+        user[USER_NAME] = self.r.hget(get_user_hkey(uid), USER_NAME)
+        user[USER_ALIAS] = self.r.hget(get_user_hkey(uid), USER_ALIAS)
+        if self.get_user_img(uid):
+            user[USER_IMG] = self.get_user_img(uid)
+        return user
+
+    def update_userinfo(self, uid, new_name=None, new_alias=None):
+        if new_name:
+            self.r.hmset(get_user_hkey(uid), {USER_NAME: new_name})
+        if new_alias:
+            self.r.hmset(get_user_hkey(uid), {USER_ALIAS: new_alias})
 
     def add_follower(self, follower, followee):
         if follower == followee:
             return 0
+        self.r.sadd(get_user_followers_hkey(followee), follower)
+        self.r.sadd(get_user_followings_hkey(follower), followee)
+        return 1
+
+    def remove_follower(self, follower, followee):
+        if follower == followee:
+            return 0
         else:
-            tmp1 = self.r.hmget(get_user_hkey(follower), USER_FOLLOWINGS)[0]
-            self.r.hmset(get_user_hkey(follower), {USER_FOLLOWINGS: tmp1 + [followee]})
-            tmp2 = self.r.hmget(get_user_hkey(followee), USER_FOLLOWERS)[0]
-            self.r.hmset(get_user_hkey(followee), {USER_FOLLOWERS: tmp2 + [follower]})
+            self.r.rem(get_user_followers_hkey(followee), follower)
+            self.r.rem(get_user_followings_hkey(follower), followee)
             return 1
+
+    def get_follower_ids(self, uid):
+        return list(self.r.smembers(get_user_followers_hkey(uid)))
+
+    def get_following_ids(self, uid):
+        return list(self.r.smembers(get_user_followings_hkey(uid)))
+
+    def get_followers(self, uid):
+        return [self.get_user_basicinfo(f) for f in self.get_follower_ids(uid)]
+
+    def get_followings(self, uid):
+                return [self.get_user_basicinfo(f) for f in self.get_following_ids(uid)]
+
+    def check_followed(self, follower, followee):
+        return followee in self.get_following_ids(follower)
+
+    def set_new_comment_id(self):
+        if self.r.get(NEW_COMMENT_ID) is None:
+            self.r.set(NEW_COMMENT_ID, 0)
+        return self.r.incr(NEW_COMMENT_ID)
+
+    def add_comment(self, tweet_id, userid, comment_content):
+        cmt_id = self.set_new_comment_id()
+        self.r.lpush(get_tweet_comments_list(tweet_id), cmt_id)
+        self.r.hmset(get_comment_hkey(cmt_id), {COMMENT_USER: userid, COMMENT_CONTENT: comment_content, COMMENT_TIME: time.time()})
+
+    def remove_comment(self, tweet_id, cmt_id):
+        self.r.delete(get_comment_hkey(cmt_id))
+        self.r.lrem(get_tweet_comments_list(tweet_id), 0, cmt_id)

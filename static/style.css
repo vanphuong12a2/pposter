@@ -1,8 +1,8 @@
 @import url(https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600,700,300);
 body {
     background: white;
-    font-family: 'Source Sans Pro', sans-serif;
-    font-size: 16px;
+    font-family: 'Source Sans Pro', sans-serif !important;
+    font-size: 16px !important;
 }
 
 a {
@@ -13,25 +13,33 @@ a:hover {
     color: #333;
 }
 
+input {
+    max-width: 100%;
+}
+
+.container .btn:hover {
+    color:#fff;
+}
+
+
+
+dt input[type="file"] {
+    display: inline-block;
+}
+
 input[type="text"],
 input[type="password"] {
     background: white;
-    -moz-border-radius: 0px;
-    -webkit-border-radius: 0px;
-    border-radius: 0px;
     max-width: 300px;
     height: 16px;
-    padding: 6px 12px;
     font-size: 1em;
     line-height: 1.5;
     border: 1px solid #aaa;
+
 }
 
-input[type="submit"] {
+input[type="submit"] , input[type="button"]{
     background-color: #bb6ea8;
-    padding: 6px 20px;
-    margin: 5px 0;
-    border-radius: 0px;
     font-size: 1em;
     font-weight: 500;
         color: #fff;
@@ -39,44 +47,116 @@ input[type="submit"] {
 
 div.page {
     background: #faecf6;
-    border: 1px solid #c1c1c1;
-    width: 700px;
+    border: 1px solid #e1e1e1;
+    max-width: 700px;
     margin: 30px auto;
+    border-radius: 10px;
+
+}
+div.page dl {
+    margin:0px;
+}
+.header {
+        border-radius: 10px;
+    padding-top: 10px;
+    background-color: #eccae4;
 }
 
 div.page h1 {
     background: #eccae4;
     margin: 0;
-    padding: 10px 14px;
-    color: white;
+    padding: 20px 15px 0px;
+    color: #730659;
     letter-spacing: 1px;
-    text-shadow: 0 0 3px #666;
+    text-shadow: 0 0 3px #faecf6;
     font-weight: 700;
 }
 
 div.page div.navigation {
-    background: #ffffff;
-    padding: 10px;
-    border-top: 1px solid #ccc;
-    border-bottom: 1px solid #eee;
+    background: #eccae4;
+    padding: 0px;
     color: #888;
     font-size: 0.8em;
     letter-spacing: 0.5px;
+    position: relative;
+        padding-right: 10px;
+}
+
+.navigation .menu {
+    width : 100%;
+    text-align: right;
+}
+
+.navigation .menu a {
+    display: inline-block;
+
+    border: 1px solid transparent;
+    border-bottom: 0px;
+    margin : 0px;
+}
+
+
+.navigation a, .navigation a:hover {
+    text-decoration: none;
+        padding: 0px 5px;
+}
+
+.navigation .user {
+    text-align: right;
 }
 
 div.page div.navigation a {
-    color: #bb6ea8;
+    color: #730659;
     font-weight: bold;
+        text-shadow: 0.5px 0.5px #faecf6;
 }
 
 div.page h2 {
-    margin: 0 0 15px 0;
+    margin: 0;
     color: #bb6ea8;
     text-shadow: 0 1px 2px #ccc;
+    font-size: 1.5em;
+}
+div.page .follow{
+    font-size: 0.65em;
+}
+
+.userinfo .col-md-12, .userform .col-md-12{
+    font-size: 0.9em;
+    line-height: 1.2em;
+}
+.userform {
+    display: none;
+}
+.userform  input {
+        width: 100%;
+    max-width: 250px;
+    height: 25px;
+    margin: 5px 0px;
+        padding: 5px;
+}
+
+.userform  input[type="submit"], .userform  input[type="button"]{
+        width: auto;
+    display: inline-block;
+        height: auto;
 }
 
 div.page div.body {
     padding: 10px;
+}
+
+.tweets-controls {
+  width: 100%;
+    padding: 0px;
+    padding-left: 15px;
+  margin: 10px auto 0px;
+
+}
+.tweets-controls li {
+    list-style: none;
+    display: inline-block;
+    margin-right: 10px;
 }
 
 div.page div.footer {
@@ -104,6 +184,36 @@ div.page ul.tweets li {
     background: #fff;
     border: 1px solid #bb6ea8;
     min-height: 48px;
+    position: relative;
+    padding-right: 30px;
+}
+
+div.page ul.tweets li .remove-post {
+      /*  background-image: url('http://icons.iconarchive.com/icons/visualpharm/must-have/256/Delete-icon.png');
+    background-size: cover;
+    background-repeat: no-repeat; 
+    display: block;
+    text-indent: -99999px;
+    width: 20px;
+    height: 20px;
+    */
+  
+    
+    position: absolute;
+   
+    top: 0px;
+    right: 5px;
+}
+
+#following .user, #follower .user{
+    float: left;
+    width: 50%;
+    margin: 20px auto;
+}
+@media(max-width: 767px){
+    #following .user, #follower .user{
+        width: 100%;
+    }
 }
 
 div.page ul.tweets p {
@@ -138,7 +248,7 @@ div.page div.twitbox p {
 }
 
 div.page div.twitbox textarea {
-    width: 600px;
+    width: 100%;
     height: 60px;
     /*margin-left: 5px;*/
 }
@@ -173,9 +283,6 @@ div.error {
 
 button.loadmore{
         background-color: #bb6ea8;
-    padding: 6px 20px;
-    margin: 5px 0;
-    border-radius: 0px;
     font-size: 1em;
     font-weight: 500;
     color: #fff;
@@ -192,4 +299,8 @@ a.google {
     height: 40px;
     background-size: contain;
     background-repeat: no-repeat;
+}
+
+dt {
+    margin: 5px auto;
 }

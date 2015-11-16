@@ -7,13 +7,11 @@ Developer: Phuong Nguyen
 Date: 10 Nov 2015
 """
 
-import os
 from flask import Flask, g, url_for, render_template, request, redirect, flash, session, abort
 import redis
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
 from apiclient.discovery import build
-from werkzeug import secure_filename
 import boto3
 import json
 from flask_jsglue import JSGlue
@@ -41,7 +39,7 @@ def before_request():
     g.test = app.config['TEST']
     g.curr_user = None
     if 'user_id' in session:
-        g.curr_user = {'name': model.get_username(session['user_id']), 'link': model.get_userlink(session['user_id'])}
+        g.curr_user = {'name': model.get_username(session['user_id']), 'alias': model.get_useralias(session['user_id'])}
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -103,7 +101,6 @@ def auth_return():
         http = credentials.authorize(http)
         service = build('plus', 'v1', http=http)
         user_info = service.people().get(userId='me').execute()
-        print user_info
         if user_info['id'] == app.config['GOOGLE_ID']:
             session['user_id'] = user_info['emails'][0]['value']  # Need to be checked
             model.add_user(session['user_id'], user_info['name']['givenName'])
@@ -124,12 +121,11 @@ def logout():
 
 @app.route('/', methods=['GET'])
 def timeline():
-    if g.curr_user is not None:
-        lusers = None
-        tweets = model.get_tweets(lusers=lusers, offset=0)
-        return render_template('timeline.html', tweets=tweets, more_tweet=True)
-    else:
-        return render_template('layout.html')
+    if g.curr_user is None:
+        return render_template('login.html')
+    lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
+    tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0)
+    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet)
 
 
 @app.route('/timelinejson', methods=['GET'])
@@ -137,95 +133,162 @@ def timelinejson():
     if g.curr_user is None:
         return render_template('login.html')
     if 'offset' in request.args:
+        lusers = model.get_following_ids(session['user_id']) + [session['uid']]
         offset = int(request.args['offset'])
-        tweets = model.get_tweets(offset=offset)
-        return json.dumps(tweets)
+        tweets, more_tweet = model.get_tweets(lusers=lusers, offset=offset)
+        return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
     else:
         abort(404)
 
 
-@app.route('/<userlink>/timelinejson', methods=['GET'])
-def user_timelinejson(userlink):
+@app.route('/<useralias>')
+def user_timeline(useralias):
     if g.curr_user is None:
         return render_template('login.html')
-    if 'offset' in request.args:
-        uid = model.get_userid(userlink)
-        if model.registered(uid):
-            offset = int(request.args['offset'])
-            tweets = model.get_tweets(lusers=[uid], offset=offset)
-            return json.dumps(tweets)
-        else:
-            return redirect(url_for('user_timeline', userlink=g.curr_user[1]), more_tweet=True)
-    else:
-        abort(404)
-
-
-@app.route('/<userlink>')
-def user_timeline(userlink):
-    if g.curr_user is None:
-        return render_template('login.html')
-    uid = model.get_userid(userlink)
+    uid = model.get_userid(useralias)
     if model.is_registered(uid):
-        tweets = model.get_tweets(lusers=[uid], offset=0)
-        return render_template('timeline.html', tweets=tweets, timelineowner=userlink, more_tweet=True)
+        tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0)
+        followed = model.check_followed(session['user_id'], uid)
+        timelineowner = {'name': model.get_username(uid), 'alias': useralias, 'followed': followed}
+        if uid == session['user_id']:
+            timelineowner['followers'] = model.get_followers(uid)
+            timelineowner['followings'] = model.get_followings(uid)
+        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet)
     else:
         flash("There is no user with that id")
         return redirect(url_for('timeline'))
 
 
-@app.route('/<userlink>/follow')
-def follow(userlink):
+@app.route('/<useralias>/timelinejson', methods=['GET'])
+def user_timelinejson(useralias):
     if g.curr_user is None:
         return render_template('login.html')
-    uid = model.get_userid(userlink)
+    if 'offset' in request.args:
+        uid = model.get_userid(useralias)
+        if model.registered(uid):
+            offset = int(request.args['offset'])
+            tweets, more_tweet = model.get_tweets(lusers=[uid], offset=offset)
+            return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
+        else:
+            return redirect(url_for('user_timeline', useralias=g.curr_user[1]), more_tweet=True)
+    else:
+        abort(404)
+
+
+@app.route('/<useralias>/follow')
+def follow(useralias):
+    if g.curr_user is None:
+        return render_template('login.html')
+    uid = model.get_userid(useralias)
     model.add_follower(session['user_id'], uid)
-    return redirect(url_for('user_timeline', userlink=userlink))
+    return redirect(url_for('user_timeline', useralias=useralias))
 
 
-@app.route('/<userlink>/unfollow')
-def unfollow(userlink):
+@app.route('/<useralias>/unfollow')
+def unfollow(useralias):
     if g.curr_user is None:
         return render_template('login.html')
-    uid = model.get_userid(userlink)
+    uid = model.get_userid(useralias)
     model.remove_follower(session['user_id'], uid)
-    return redirect(url_for('user_timeline', userlink=userlink))
+    return redirect(url_for('user_timeline', useralias=useralias))
+
+
+@app.route('/<useralias>/followers')
+def followers(useralias):
+    if g.curr_user is None:
+        return render_template('login.html')
+    followers = model.get_followers(model.get_userid(useralias))
+    return render_template("timeline.html", followers=followers)
+
+
+@app.route('/<useralias>/followings')
+def followings(useralias):
+    if g.curr_user is None:
+        return render_template('login.html')
+    followings = model.get_followings(model.get_userid(useralias))
+    return render_template("timeline.html", followings=followings)
+
+
+@app.route('/<useralias>/update_avatar', methods=['POST'])
+def update_avatar(useralias):
+    if g.curr_user is None:
+        return render_template('login.html')
+    else:
+        if request.method == 'POST':
+            new_avatar = request.files['avatar']
+            model.add_user_avatar(session['user_id'], new_avatar)
+            return redirect(url_for('user_timeline', useralias=useralias))
+        else:
+            abort(404)
+
+
+@app.route('/<useralias>/update_info', methods=['POST'])
+def update_info(useralias):
+    if g.curr_user is None:
+        return render_template('login.html')
+    else:
+        if request.method == 'POST':
+            new_name = request.form['name']
+            new_alias = request.form['alias']
+            if model.check_alias(new_alias):
+                model.update_user(session['user_id'], new_name, new_alias)
+                return redirect(url_for('user_timeline', useralias=useralias))
+            else:
+                return 'alias was used'
+        else:
+            abort(404)
 
 
 @app.route('/public')
 def public_timeline():
-    tweets = model.get_tweets(offset=0)
-    return render_template('timeline.html', tweets=tweets)
+    tweets, more_tweet = model.get_tweets(offset=0)
+    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet)
+
+
+@app.route('/public/timelinejson', methods=['GET'])
+def public_timelinejson():
+    if 'offset' in request.args:
+        offset = int(request.args['offset'])
+        tweets, more_tweet = model.get_tweets(offset=offset)
+        return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
+    else:
+        abort(404)
 
 
 @app.route('/add_tweet', methods=['POST'])
-@app.route('/<userlink>/add_tweet', methods=['POST'])
-def add_tweet(userlink=None):
+@app.route('/<useralias>/add_tweet', methods=['POST'])
+def add_tweet(useralias=None):
     if g.curr_user is None:
         return render_template('login.html')
-    if userlink is not None and userlink != g.curr_user['link']:
+    if useralias is not None and useralias != g.curr_user['alias']:
         return "Illegal post"
     if request.method == 'POST':
-        #Get tweet
         tweet_content = request.form['tweet']
         if len(tweet_content) not in range(app.config['TWEET_MIN_LEN'], app.config['TWEET_MAX_LEN'] + 1):
             return render_template("timeline.html", error="Tweet length error!")
         tweet_file = request.files['img']
         if tweet_file and not allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
             return render_template("timeline.html", error="File ext not supported!")
-
-        new_imgname = None
         if tweet_file:
-            org_imgname = secure_filename(tweet_file.filename)
-            new_imgname = "tweet" + str(model.get_new_tweet_id()) + '.' + org_imgname.rsplit('.', 1)[1]
-            if app.config['TEST']:
-                tweet_file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_imgname))
-            else:
-                model.s3_put(conn, app.config['BUCKET'], new_imgname, tweet_file)
-        model.add_tweet(tweet_content, session['user_id'], new_imgname)
-        if userlink is None:
+            model.add_tweet(tweet_content, session['user_id'], tweet_file)
+        else:
+            model.add_tweet(tweet_content, session['user_id'])
+        if useralias is None:
             return redirect(url_for('timeline'))
         else:
-            return redirect(url_for('user_timeline', userlink=userlink))
+            return redirect(url_for('user_timeline', useralias=useralias))
+
+
+@app.route('/remove_tweet', methods=['GET'])
+@app.route('/<useralias>/remove_tweet')
+def remove_tweet(useralias=None):
+    if 'tweet_id' not in request.args:
+        abort(404)
+    tweet_id = request.args['tweet_id']
+    model.remove_tweet(tweet_id)
+    if useralias is not None:
+        return redirect(url_for('user_timeline', useralias=useralias))
+    return redirect(url_for('timeline'))
 
 if __name__ == '__main__':
     if app.config['TEST']:
