@@ -3,6 +3,8 @@ import os
 import common
 import time
 from werkzeug import secure_filename
+import redis
+import boto3
 
 NEW_TWEET_ID = 'new_tweet_id'
 TWEETS = 'tweet_ids'
@@ -26,6 +28,8 @@ NEW_COMMENT_ID = 'new_comment_id'
 COMMENT_USER = 'comment_user'
 COMMENT_CONTENT = 'comment_content'
 COMMENT_TIME = 'comment_time'
+COMMENT_USERALIAS = 'comment_useralias'
+COMMENT_USERNAME = 'comment_username'
 
 
 def get_tweet_hkey(tweet_id):
@@ -54,20 +58,38 @@ def get_comment_hkey(cmt_id):
 
 class RedisModel(object):
 
-    def __init__(self, r, conn, config):
+    def __init__(self, config):
+        if not config['TEST']:
+            r = redis.StrictRedis(host=config['REDIS_HOST'], port=config['REDIS_PORT'], db=config['REDIS_DB'])
+        else:
+            r = redis.StrictRedis(host=config['REDIS_HOST'], port=config['REDIS_PORT'], db=config['REDIS_TEST_DB'])
+        if config['LOCAL']:
+            conn = None
+        else:
+            conn = boto3.resource('s3')
         self.r = r
         self.conn = conn
         self.config = config
 
+    def flush_db(self):
+        self.r.flushdb()
+
+    def get_s3_filename(self, filename):
+        if self.config['TEST']:
+            filename = 'db' + str(self.onfig['REDIS_TEST_DB']) + '_' + filename
+        else:
+            filename = 'db' + str(self.config['REDIS_DB']) + '_' + filename
+        return filename
+
     def s3_put(self, bucket, filename, content):
-        self.conn.Object(bucket, filename).put(Body=content)
+        self.conn.Object(bucket, self.get_s3_filename(filename)).put(Body=content)
 
     def s3_get(self, bucket, filename):
-        img_data = self.conn.Object(bucket, filename).get()
+        img_data = self.conn.Object(bucket, self.get_s3_filename(filename)).get()
         return base64.encodestring(img_data['Body'].read())
 
     def s3_delete(self, bucket, filename):
-        self.conn.Object(bucket, filename).delete()
+        self.conn.Object(bucket, self.get_s3_filename(filename)).delete()
 
     def set_new_tweet_id(self):
         if self.r.get(NEW_TWEET_ID) is None:
@@ -91,7 +113,7 @@ class RedisModel(object):
             new_imgname = None
             org_imgname = secure_filename(img.filename)
             new_imgname = "tweet" + str(tweet_id) + '.' + org_imgname.rsplit('.', 1)[1]
-            if self.config['TEST']:
+            if self.config['LOCAL']:
                 img.save(os.path.join(self.config['UPLOAD_FOLDER'], new_imgname))
             else:
                 self.s3_put(self.config['BUCKET'], new_imgname, img)
@@ -114,6 +136,9 @@ class RedisModel(object):
                     cmt[k] = common.format_datetime(float(val))
                 else:
                     cmt[k] = unicode(val, "utf8")
+                if k == COMMENT_USER:
+                    cmt[COMMENT_USERNAME] = self.get_username(val)
+                    cmt[COMMENT_USERALIAS] = self.get_useralias(val)
             comments.append(cmt)
         return comments
 
@@ -123,7 +148,7 @@ class RedisModel(object):
             self.remove_comment(cmt_id)
         tweet_img = self.r.hget(get_tweet_hkey(tweet_id), TWEET_IMG)
         if tweet_img:
-            if self.config['TEST']:
+            if self.config['LOCAL']:
                 pass
             else:
                 self.s3_delete(os.path.join(self.config['UPLOAD_FOLDER'], tweet_img))
@@ -138,7 +163,7 @@ class RedisModel(object):
         for k in hkeys:
             val = self.r.hget(tname, k)
             if k == TWEET_IMG and val:
-                if self.config['TEST']:
+                if self.config['LOCAL']:
                     tweet[k] = os.path.join('tmp', val)
                 else:
                     tweet[k] = self.s3_get(self.config['BUCKET'], val)
@@ -149,6 +174,7 @@ class RedisModel(object):
             if k == TWEET_USER:
                 tweet['username'] = self.get_username(val)
                 tweet['useralias'] = self.get_useralias(val)
+        tweet['comments'] = self.get_comments(tweet_id)
         return tweet
 
     def get_tweets(self, lusers=None, offset=None):
@@ -178,7 +204,15 @@ class RedisModel(object):
         return email
 
     def add_user_avatar(self, uid, avatar):
-        self.r.hmset(get_user_hkey(uid), {USER_IMG: avatar})
+        new_imgname = None
+        org_imgname = secure_filename(avatar.filename)
+        new_imgname = "avatar" + uid.replace('@', '__').replace('.', '_') + '.' + org_imgname.rsplit('.', 1)[1]
+        if self.config['LOCAL']:
+            avatar.save(os.path.join(self.config['UPLOAD_FOLDER'], new_imgname))
+        else:
+            self.s3_delete(self.config['BUCKET'], self.r.hget(get_user_hkey(uid), USER_IMG))
+            self.s3_put(self.config['BUCKET'], new_imgname, avatar)
+        self.r.hmset(get_user_hkey(uid), {USER_IMG: new_imgname})
 
     def is_valid_user(self, email, password):
         stored_pass = self.r.hget(get_user_hkey(email), USER_PASS)
@@ -199,7 +233,7 @@ class RedisModel(object):
     def get_user_img(self, uid):
         user_img = self.r.hget(get_user_hkey(uid), USER_IMG)
         if user_img:
-            if self.config['TEST']:
+            if self.config['LOCAL']:
                 return os.path.join('tmp', self.r.hget(get_user_hkey(uid), USER_IMG))
             else:
                 return self.s3_get(self.config['BUCKET'], self.r.hget(get_user_hkey(uid), USER_IMG))
@@ -233,6 +267,9 @@ class RedisModel(object):
         if new_name:
             self.r.hmset(get_user_hkey(uid), {USER_NAME: new_name})
         if new_alias:
+            alias = self.get_useralias(uid)
+            self.r.hdel(HUSERALIAS, alias)
+            self.r.hset(HUSERALIAS, new_alias, uid)
             self.r.hmset(get_user_hkey(uid), {USER_ALIAS: new_alias})
 
     def add_follower(self, follower, followee):
@@ -246,8 +283,8 @@ class RedisModel(object):
         if follower == followee:
             return 0
         else:
-            self.r.rem(get_user_followers_hkey(followee), follower)
-            self.r.rem(get_user_followings_hkey(follower), followee)
+            self.r.srem(get_user_followers_hkey(followee), follower)
+            self.r.srem(get_user_followings_hkey(follower), followee)
             return 1
 
     def get_follower_ids(self, uid):
@@ -272,7 +309,7 @@ class RedisModel(object):
 
     def add_comment(self, tweet_id, userid, comment_content):
         cmt_id = self.set_new_comment_id()
-        self.r.lpush(get_tweet_comments_list(tweet_id), cmt_id)
+        self.r.rpush(get_tweet_comments_list(tweet_id), cmt_id)
         self.r.hmset(get_comment_hkey(cmt_id), {COMMENT_USER: userid, COMMENT_CONTENT: comment_content, COMMENT_TIME: time.time()})
 
     def remove_comment(self, tweet_id, cmt_id):

@@ -8,16 +8,13 @@ Date: 10 Nov 2015
 """
 
 from flask import Flask, g, url_for, render_template, request, redirect, flash, session, abort
-import redis
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
 from apiclient.discovery import build
-import boto3
 import json
 from flask_jsglue import JSGlue
-from common import allowed_file
 from redis_model import RedisModel
-
+import common
 
 jsglue = JSGlue()
 app = Flask(__name__)
@@ -25,18 +22,12 @@ jsglue.init_app(app)
 app.config.from_object('config')
 app.config.from_envvar('PPOSTER_SETTINGS', silent=True)
 
-
-r = redis.StrictRedis(host=app.config['REDIS_HOST'], port=app.config['REDIS_PORT'], db=app.config['REDIS_DB'])
-if app.config['TEST']:
-    conn = None
-else:
-    conn = boto3.resource('s3')
-model = RedisModel(r, conn, app.config)
+model = RedisModel(app.config)
 
 
 @app.before_request
 def before_request():
-    g.test = app.config['TEST']
+    g.test = app.config['LOCAL']
     g.curr_user = None
     if 'user_id' in session:
         g.curr_user = {'name': model.get_username(session['user_id']), 'alias': model.get_useralias(session['user_id'])}
@@ -63,7 +54,7 @@ def register():
         return redirect(url_for('timeline'))
     error = None
     if request.method == 'POST':
-        if not request.form['email'] or '@' not in request.form['email']:
+        if not request.form['email'] or not common.is_valid_email(request.form['email']):
             error = 'You have to enter an valid email'
         elif model.is_registered(request.form['email']):
             error = 'This email was registered'
@@ -73,6 +64,8 @@ def register():
             error = 'You have to enter a password'
         elif request.form['password'] != request.form['password2']:
             error = 'The two passwords do not match'
+        elif not common.is_strong_pass(request.form['password']):
+            error = 'The password is not strong enough'
         else:
             model.add_user(request.form['email'], request.form['name'], request.form['password'])
             flash('You were successfully registered and can login now')
@@ -102,8 +95,9 @@ def auth_return():
         service = build('plus', 'v1', http=http)
         user_info = service.people().get(userId='me').execute()
         if user_info['id'] == app.config['GOOGLE_ID']:
-            session['user_id'] = user_info['emails'][0]['value']  # Need to be checked
-            model.add_user(session['user_id'], user_info['name']['givenName'])
+            session['user_id'] = user_info['emails'][0]['value']
+            if not model.is_registered(session['user_id']):
+                model.add_user(session['user_id'], user_info['name']['givenName'])
             flash("You were logged in!")
             return redirect(url_for('timeline'))
         else:
@@ -123,9 +117,12 @@ def logout():
 def timeline():
     if g.curr_user is None:
         return render_template('login.html')
+    error = None
+    if 'error' in request.args:
+        error = request.args['error']
     lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
     tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0)
-    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet)
+    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, error=error)
 
 
 @app.route('/timelinejson', methods=['GET'])
@@ -141,16 +138,19 @@ def timelinejson():
         abort(404)
 
 
-@app.route('/<useralias>')
+@app.route('/<useralias>', methods=['GET'])
 def user_timeline(useralias):
     if g.curr_user is None:
         return render_template('login.html')
     uid = model.get_userid(useralias)
     if model.is_registered(uid):
+        error = None
+        if 'error' in request.args:
+            error = request.args['error']
         tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0)
         timelineowner = model.get_user_info(uid)
         timelineowner['followed'] = model.check_followed(session['user_id'], uid)
-        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet)
+        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet, error=error)
     else:
         flash("There is no user with that id")
         return redirect(url_for('timeline'))
@@ -190,27 +190,14 @@ def unfollow(useralias):
     return redirect(url_for('user_timeline', useralias=useralias))
 
 
-@app.route('/<useralias>/followers')
-def followers(useralias):
-    if g.curr_user is None:
-        return render_template('login.html')
-    followers = model.get_followers(model.get_userid(useralias))
-    return render_template("timeline.html", followers=followers)
-
-
-@app.route('/<useralias>/followings')
-def followings(useralias):
-    if g.curr_user is None:
-        return render_template('login.html')
-    followings = model.get_followings(model.get_userid(useralias))
-    return render_template("timeline.html", followings=followings)
-
-
 @app.route('/<useralias>/update_avatar', methods=['POST'])
 def update_avatar(useralias):
     if g.curr_user is None:
         return render_template('login.html')
     else:
+        if useralias != g.curr_user['alias']:
+            flash("Illegal access")
+            return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
         if request.method == 'POST':
             new_avatar = request.files['avatar']
             model.add_user_avatar(session['user_id'], new_avatar)
@@ -220,18 +207,22 @@ def update_avatar(useralias):
 
 
 @app.route('/<useralias>/update_info', methods=['POST'])
-def update_info(useralias):
+def update_userinfo(useralias):
     if g.curr_user is None:
         return render_template('login.html')
     else:
+        if useralias != g.curr_user['alias']:
+            flash("Illegal access")
+            return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
         if request.method == 'POST':
             new_name = request.form['name']
             new_alias = request.form['alias']
-            if model.check_alias(new_alias):
-                model.update_user(session['user_id'], new_name, new_alias)
-                return redirect(url_for('user_timeline', useralias=useralias))
+            if not model.check_alias(new_alias):
+                model.update_userinfo(session['user_id'], new_name, new_alias)
+                return redirect(url_for('user_timeline', useralias=new_alias))
             else:
-                return 'alias was used'
+                error = "Alias was used!"
+                return redirect(url_for('user_timeline', useralias=useralias, error=error))
         else:
             abort(404)
 
@@ -258,37 +249,69 @@ def add_tweet(useralias=None):
     if g.curr_user is None:
         return render_template('login.html')
     if useralias is not None and useralias != g.curr_user['alias']:
-        return "Illegal post"
+        flash("Illegal access")
+        return redirect(url_for('user_timeline', useralias=g.curr_alias['alias']))
+    error = None
     if request.method == 'POST':
         tweet_content = request.form['tweet']
-        if len(tweet_content) not in range(app.config['TWEET_MIN_LEN'], app.config['TWEET_MAX_LEN'] + 1):
-            return render_template("timeline.html", error="Tweet length error!")
-        tweet_file = request.files['img']
-        if tweet_file and not allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
-            return render_template("timeline.html", error="File ext not supported!")
-        if tweet_file:
-            model.add_tweet(tweet_content, session['user_id'], tweet_file)
+        if len(tweet_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
+            error = "Tweet length error!"
         else:
-            model.add_tweet(tweet_content, session['user_id'])
+            tweet_file = request.files['img']
+            if tweet_file and not common.is_allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
+                error = "File ext not supported!"
+            else:
+                if tweet_file:
+                    model.add_tweet(tweet_content, session['user_id'], tweet_file)
+                else:
+                    model.add_tweet(tweet_content, session['user_id'])
         if useralias is None:
-            return redirect(url_for('timeline'))
+            return redirect(url_for('timeline', error=error))
         else:
-            return redirect(url_for('user_timeline', useralias=useralias))
+            return redirect(url_for('user_timeline', useralias=useralias, error=error))
 
 
 @app.route('/remove_tweet', methods=['GET'])
 @app.route('/<useralias>/remove_tweet')
 def remove_tweet(useralias=None):
+    if g.curr_user is None:
+        return render_template('login.html')
+    if useralias is not None and useralias != g.curr_user['alias']:
+        flash("Illegal access")
+        return redirect(url_for('user_timeline', useralias=g.curr_alias['alias']))
     if 'tweet_id' not in request.args:
-        abort(404)
+        return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
     tweet_id = request.args['tweet_id']
     model.remove_tweet(tweet_id)
     if useralias is not None:
         return redirect(url_for('user_timeline', useralias=useralias))
     return redirect(url_for('timeline'))
 
+
+@app.route('/add_comment', methods=['POST'])
+@app.route('/<useralias>/add_comment', methods=['POST'])
+def add_comment(useralias=None):
+    if g.curr_user is None:
+        return render_template('login.html')
+    if request.method == 'POST':
+        error = None
+        comment_content = request.form['content']
+        if len(comment_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
+            error = "Comment length error"
+        else:
+            tweet_id = request.args['tweet_id']
+            model.add_comment(tweet_id, session['user_id'], comment_content)
+        if useralias is not None:
+            #TODO: back to the tweet position!!!
+            return redirect(url_for('user_timeline', useralias=useralias, error=error))
+        else:
+            return redirect(url_for('timeline', error=error))
+    else:
+        abort(404)
+
+
 if __name__ == '__main__':
-    if app.config['TEST']:
+    if app.config['LOCAL']:
         app.run(debug=app.config['DEBUG'])
     else:
         app.run(host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])

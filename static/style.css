@@ -31,7 +31,6 @@ input[type="text"],
 input[type="password"] {
     background: white;
     max-width: 300px;
-    height: 16px;
     font-size: 1em;
     line-height: 1.5;
     border: 1px solid #aaa;
@@ -240,7 +239,12 @@ div.page div.twitbox {
 div.page div.twitbox h3 {
     margin: 0;
     font-size: 1em;
+    font-weight: 700;
     /*color: #bb6ea8;*/
+}
+
+div.page div.twitbox dt {
+    font-weight: 300;
 }
 
 div.page div.twitbox p {
@@ -303,4 +307,12 @@ a.google {
 
 dt {
     margin: 5px auto;
+}
+
+.actions {
+    margin: 10px auto;
+}
+
+.comments {
+    margin-left: 10px;
 }

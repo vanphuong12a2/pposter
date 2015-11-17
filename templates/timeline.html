@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block body %}
+{% if error %}<div class="error bg-danger"><strong>Error:</strong> {{ error }}</div>{% endif %}
 <div class="row">
     {% if g.curr_user %}
         {% if request.endpoint == 'user_timeline' %}
@@ -25,38 +26,42 @@
                     <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
                 {% endif%}    
                 {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
-                    <a href="javascript:void(0)">Change avatar</a>
+                    <a class="change-avatar" href="javascript:void(0)">change avatar</a>
+                    <form class="col-md-12 choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
+                        <dl>
+                            <dt>choose:<dd><input type="file" name="avatar"  accept=".jpg,.jpeg,.png"/>
+                        </dl>    
+                        <div class="action">
+                            <input class="btn" type="submit" value="submit" />
+                        </div>
+                    </form>
                 {% endif %}
             </div>
         </div>
         <div class="col-md-9">
             <div class="row userinfo">
                 <div class="col-md-12">
-                    <dl>
-                        <dt>Joined: <dd>{{timelineowner['user_joined']}}
-                        <dt>Email: <dd>{{timelineowner['user_id']}}
-                        <dt>Username:<dd>{{timelineowner['user_name']}}
-                        <dt>Alias: <dd>{{timelineowner['user_alias']}}
-                    </dl>
+                    <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
+                    <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>
+                    <p><strong>Username: </strong>{{timelineowner['user_name']}}</p>
+                    <p><strong>Alias: </strong>{{timelineowner['user_alias']}}</p>
                 </div>
                 {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
-            </div>
+           </div>
                 {% else %}
                 <div class="col-md-12">
                     <a href="javascript:void(0)" onclick="updateUserinfo()">updateinfo</a>
                 </div>
             </div>
             <div class="row userform">
-                <dl>
-                    <dt>Joined: <dd>{{timelineowner['user_joined']}}
-                    <dt>Email: <dd>{{timelineowner['user_id']}}
-                </dl>    
-                <form class="col-md-12" action="url_for('update_user')">
+                <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
+                <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>    
+                <form class="col-md-12" action="{{url_for('update_userinfo', useralias=timelineowner['user_alias'])}}" method=post>
                     <dl>
-                        <dt>Username:<dd><input type="text" name="username" placeholder="user alias" />
-                        <dt>Alias:<dd><input type="text" name="status" placeholder="status" />
+                        <dt>Username:<dd><input class="form-control" type="text" name="name" placeholder="user alias" />
+                        <dt>Alias:<dd><input class="form-control" type="text" name="alias" placeholder="status" />
                     </dl>    
-                    <div>
+                    <div class="action">
                         <input class="btn" type="submit" value="submit" />
                         <input class="btn" type="button" onclick="cancelUpdateUserinfo()" value="cancel" />
                     </div>
@@ -69,17 +74,13 @@
 </div>
 {% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias'] %}
 <div class="row">
-    <ul class="tweets-controls nav nav-tabs" role="tablist">
-        <li role="presentation" class="active"><a href="#tweets-data" aria-controls="tweets-data" role="tab" data-toggle  ="tab">Tweets</a></li>
-        <li role="presentation"  ><a href="#following" aria-controls="following" role="tab" data-toggle="tab">Following</a></li>
-        <li role="presentation"><a href="#follower" aria-controls="follower" role="tab" data-toggle="tab">Follower</a></li>
-    </ul>
-</div>
-{% else %}
-<div class="row">
-    <ul class="tweets-controls nav nav-tabs" role="tablist">
-        <li role="presentation" class="active"><a href="#tweets-data" aria-controls="tweets-data" role="tab" data-toggle  ="tab">Tweets</a></li>
-    </ul>
+    <div class="col-md-12">
+        <ul class="tweets-controls nav nav-tabs" role="tablist">
+            <li role="presentation" class="active"><a href="#tweets-data" aria-controls="tweets-data" role="tab" data-toggle  ="tab">Tweets</a></li>
+            <li role="presentation"  ><a href="#following" aria-controls="following" role="tab" data-toggle="tab">Following</a></li>
+            <li role="presentation"><a href="#follower" aria-controls="follower" role="tab" data-toggle="tab">Follower</a></li>
+        </ul>
+    </div>
 </div>
 {% endif %}
 <div class="tab-content">
@@ -90,85 +91,107 @@
                 <form action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_tweet', useralias=g.curr_user['alias']) }} {% else %} {{ url_for('add_tweet') }} {% endif %} " enctype="multipart/form-data" method=post>
                     <dl>
                         <dt><textarea name=tweet></textarea>
-                        <dt>Add img: <input type=file name=img>
-                        <dt><input type=submit value=Post>
+                        <dt>Add img: <input type=file name=img accept=".jpg,.jpeg,.png">
                     </dl>
+                    <div class="actions">
+                        <input class="btn" type=submit value=Post>
+                    </div>
                 </form>
             </div>
         {% endif %}
         <ul class="tweets">
             {% for tweet in tweets %}
-            <li>
-            <strong><a href="{{ url_for('user_timeline', useralias=tweet['useralias']) }}">{{ tweet['username'] }}</a></strong>
-            <small>{{ tweet['tweet_time'] }}</small>
-            {{ tweet['tweet_content'] }}
-            {% if tweet['tweet_img']  %}
-            <div class="tweet-image">
-                {% if g.test %} 
-                <img src="{{ url_for('static', filename=tweet['tweet_img']) }}">
-                {% else %}
-                <img src="data:image/jpeg;base64,{{tweet['tweet_img']}}"/>
+                <li>
+                <strong><a href="{{ url_for('user_timeline', useralias=tweet['useralias']) }}">{{ tweet['username'] }}</a></strong>
+                <small>{{ tweet['tweet_time'] }}</small>
+                {{ tweet['tweet_content'] }}
+                {% if tweet['tweet_img']  %}
+                <div class="tweet-image">
+                    {% if g.test %} 
+                    <img src="{{ url_for('static', filename=tweet['tweet_img']) }}">
+                    {% else %}
+                    <img src="data:image/jpeg;base64,{{tweet['tweet_img']}}"/>
+                    {% endif %}
+                </div>
                 {% endif %}
-            </div>
-            {% endif %}
-            {% if request.endpoint != 'public_timeline' and tweet['useralias'] == g.curr_user['alias'] %}
-                {% if request.endpoint == 'user_timeline' %}
-                <a class="remove-post"  href="{{url_for('remove_tweet', useralias=timelineowner['user_alias'],tweet_id=tweet['tweet_id'])}}">del</a>
-                {% else %}    
-                <a class="remove-post"  href="{{url_for('remove_tweet', tweet_id=tweet['tweet_id'])}}">del</a>
-                {% endif %}    
-            {% endif %} 
+                {% if request.endpoint != 'public_timeline' and tweet['useralias'] == g.curr_user['alias'] %}
+                    {% if request.endpoint == 'user_timeline' %}
+                    <a class="remove-post"  href="{{url_for('remove_tweet', useralias=timelineowner['user_alias'],tweet_id=tweet['tweet_id'])}}">del</a>
+                    {% else %}    
+                    <a class="remove-post"  href="{{url_for('remove_tweet', tweet_id=tweet['tweet_id'])}}">del</a>
+                    {% endif %}    
+                {% endif %}
+                <div class="comments">
+                    {% for comment in tweet['comments'] %}
+                        <div class="comment">
+                            <p><a href="{{url_for('user_timeline', useralias=comment['comment_useralias'])}}"><strong>{{comment['comment_username']}}</strong></a> {{comment['comment_content']}}</p>
+                        </div>
+                        {% endfor %} 
+                        {% if request.endpoint != 'public_timeline'%}
+                    <form class="post-comment form-inline" action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_comment', useralias=timelineowner['user_alias'], tweet_id=tweet['tweet_id']) }} {% else %} {{ url_for('add_comment', tweet_id=tweet['tweet_id']) }} {% endif %}" method="post">
+                        <input class="form-control" type="text" name="content" > <input type="submit" class="btn" value="Post">
+                    </form>
+                    {%endif%}
+                    </div>
             {% else %}
                 <li><em>There's no message so far.</em>
             {% endfor %} 
         </ul>
         {% if more_tweet %}
         <div class='control'> 
-            <button class="loadmore">Load more</button>
+            <button class="loadmore btn">Load more</button>
         </div>
         {% endif %}
     </div>
     {% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias']%}
     <div role="tabpanel" class="tab-pane" id="following">
-        <div class="user">
-            {% for fol in timelineowner['followings'] %}
-            <div class="col-md-3 col-sm-3 col-xs-12">
-                {% if fol['user_img'] %}
-                    <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                {% else %}
-                    <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                {% endif %}   
-            </div>
-            <div class="col-md-9">
-                <div class="row">
-                    <div class="col-md-12">
-                        <a href="{{url_for('user_timeline', useralias=fol['user_alias'])}}">{{fol['user_name']}}</a>       
-                    </div>
+        {% for fol in timelineowner['followings'] %}
+            <div class="user">              
+                <div class="col-md-3 col-sm-3 col-xs-12">
+                    {% if fol['user_img'] %}
+                        {% if g.test %}
+                            <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
+                        {% else %}
+                            <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
+                        {% endif %}
+                    {% else %}
+                        <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
+                    {% endif %}   
                 </div>
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <a href="{{url_for('user_timeline', useralias=fol['user_alias'])}}">{{fol['user_name']}}</a>       
+                        </div>
+                    </div>
+                </div>              
             </div>
-            {% endfor %}
-        </div>
+        {% endfor %}
     </div>
 
     <div role="tabpanel" class="tab-pane" id="follower">
-        <div class="user">
-            {% for fol in timelineowner['followers'] %}
-            <div class="col-md-3 col-sm-3 col-xs-12">
-                {% if fol['user_img'] %}
-                <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                {% else %}
-                <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                {% endif %}
-            </div>
-            <div class="col-md-9">
-                <div class="row">
-                    <div class="col-md-12">
-                        <a href="{{url_for('user_timeline', useralias=fol['user_alias'])}}">{{fol['user_name']}}</a>
-                    </div>
+        {% for fol in timelineowner['followers'] %}
+            <div class="user">          
+                <div class="col-md-3 col-sm-3 col-xs-12">
+                    {% if fol['user_img'] %}
+                        {% if g.test %}
+                        <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
+                        {% else %}
+                        <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
+                        {% endif %}
+                    {% else %}
+                    <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
+                    {% endif %}
                 </div>
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <a href="{{url_for('user_timeline', useralias=fol['user_alias'])}}">{{fol['user_name']}}</a>
+                        </div>
+                    </div>
+                </div>            
             </div>
-            {% endfor %}
-        </div>
+        {% endfor %}
     </div>
     {% endif %}
 </div>
@@ -198,6 +221,18 @@
             })
         });
     })
+    jQuery(document).on('click', '.avatar .change-avatar',function(){
+        var form = jQuery('form.choose-avatar');
+        var file = jQuery(form).find('input[type="file"]');
+        file.click();
+    });
+
+    jQuery('form.choose-avatar input[type="file"]').change(function () {
+        var form = jQuery('form.choose-avatar');
+        jQuery(form).submit();
+    });
+
+
     function getTweet(src, content, time){
         var html = '';
         html += '<li>AJAX<strong><a href="">user</a></strong>';
