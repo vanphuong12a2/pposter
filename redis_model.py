@@ -158,8 +158,8 @@ class RedisModel(object):
         self.r.delete(get_tweet_hkey(tweet_id))
         #Try to return the next tweet
         tweet_ids = self.r.lrange(TWEETS, 0, -1)
-        next_tweet = tweet_ids[0]
-        if tweet_id in tweet_ids:
+        next_tweet = 0
+        if tweet_id in tweet_ids and tweet_ids.index(tweet_id) > 0:
             next_tweet = tweet_ids[tweet_ids.index(tweet_id) - 1]
         self.r.lrem(TWEETS, 0, tweet_id)
         return next_tweet

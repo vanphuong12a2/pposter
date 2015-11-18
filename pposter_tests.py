@@ -55,6 +55,12 @@ class PposterTestCase(unittest.TestCase):
         else:
             return self.app.post('/add_tweet', data=dict(tweet=tweet_content, img=tweet_img), follow_redirects=True)
 
+    def remove_tweet(self, tweet_id, useralias=None):
+        if useralias:
+            self.app.get('/' + useralias + '/remove_tweet?tweet_id=' + str(tweet_id), follow_redirects=True)
+        else:
+            self.app.get('/remove_tweet?tweet_id=' + str(tweet_id), follow_redirects=True)
+
     def follow(self, useralias):
         return self.app.get('/' + useralias + '/follow', follow_redirects=True)
 
@@ -67,9 +73,12 @@ class PposterTestCase(unittest.TestCase):
     def update_info(self, useralias, new_name, new_alias):
         return self.app.post('/' + useralias + '/update_info', data=dict(name=new_name, alias=new_alias), follow_redirects=True)
 
-    def add_comment(self, tweet_id, uid, content):
+    def add_comment(self, tweet_id, content, useralias=None):
         #TODO
-        pass
+        if useralias:
+            return self.app.post('/' + useralias + '/add_comment', data=dict(comment_content=content, tweet_id=tweet_id), follow_redirects=True)
+        else:
+            return self.app.post('/add_comment', data=dict(comment_content=content, tweet_id=tweet_id), follow_redirects=True)
 
     def assert_flashes(self, expected_message, expected_category='message'):
         with self.app.session_transaction() as session:
@@ -151,6 +160,10 @@ class PposterTestCase(unittest.TestCase):
         assert '<div class="tweet-image">' in rv.data
         assert "There's no message so far." not in rv.data
 
+        #TODO remove tweet
+        rv = self.remove_tweet(1)
+        rv = self.remove_tweet(1, 'user1001')
+
         self.logout()
         self.success_login('user2')
         rv = self.app.get('/user1001')
@@ -188,8 +201,19 @@ class PposterTestCase(unittest.TestCase):
         assert rv
 
     def test_ajax(self):
-        pass
+        #TODO: login and add a lot of tweet
+        rv = self.app.get('/timelinejson', follow_redirects=True)
+        rv = self.app.get('/timelinejson?index=5', follow_redirects=True)
 
+        rv = self.app.get('/user1001/timelinejson', follow_redirects=True)
+        rv = self.app.get('/user1001/timelinejson?index=5', follow_redirects=True)
+
+        assert rv
+
+    def test_add_comment(self):
+        #TODO: login add tweet => add comment
+        rv = self.add_comment(1, 'cmt content')
+        assert rv
 
 if __name__ == '__main__':
     unittest.main()
