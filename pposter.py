@@ -10,8 +10,8 @@ Date: 10 Nov 2015
 from flask import Flask, g, url_for, render_template, request, redirect, flash, session, abort
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
-from apiclient.discovery import build
 import json
+from apiclient.discovery import build
 from flask_jsglue import JSGlue
 from redis_model import RedisModel
 import common
@@ -125,19 +125,6 @@ def timeline():
     return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, error=error)
 
 
-@app.route('/timelinejson', methods=['GET'])
-def timelinejson():
-    if g.curr_user is None:
-        return render_template('login.html')
-    if 'offset' in request.args:
-        lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
-        offset = int(request.args['offset'])
-        tweets, more_tweet = model.get_tweets(lusers=lusers, offset=offset)
-        return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
-    else:
-        abort(404)
-
-
 @app.route('/<useralias>', methods=['GET'])
 def user_timeline(useralias):
     if g.curr_user is None:
@@ -156,18 +143,20 @@ def user_timeline(useralias):
         return redirect(url_for('timeline'))
 
 
+@app.route('/timelinejson', methods=['GET'])
 @app.route('/<useralias>/timelinejson', methods=['GET'])
-def user_timelinejson(useralias):
+def timelinejson(useralias=None):
     if g.curr_user is None:
         return render_template('login.html')
     if 'offset' in request.args:
-        uid = model.get_userid(useralias)
-        if model.registered(uid):
-            offset = int(request.args['offset'])
-            tweets, more_tweet = model.get_tweets(lusers=[uid], offset=offset)
-            return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
+        offset = int(request.args['offset'])
+        if useralias is None:
+            lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
+            tweets, more_tweet = model.get_tweets(lusers=lusers, offset=offset)
         else:
-            return redirect(url_for('user_timeline', useralias=g.curr_user[1]), more_tweet=True)
+            uid = model.get_userid(useralias)
+            tweets, more_tweet = model.get_tweets(lusers=[uid], offset=offset)
+        return json.dumps({'tweets': render_template('tweets.html', tweets=tweets), 'more_tweet': more_tweet})
     else:
         abort(404)
 
@@ -238,7 +227,7 @@ def public_timelinejson():
     if 'offset' in request.args:
         offset = int(request.args['offset'])
         tweets, more_tweet = model.get_tweets(offset=offset)
-        return json.dumps({'tweets': tweets, 'more_tweet': more_tweet})
+        return json.dumps({'tweets': render_template('tweets.html', tweets=tweets), 'more_tweet': more_tweet})
     else:
         abort(404)
 

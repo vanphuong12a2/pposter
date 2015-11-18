@@ -208,6 +208,8 @@ div.page ul.tweets li .remove-post {
     float: left;
     width: 50%;
     margin: 20px auto;
+        max-height: 250px;
+    overflow: hidden;
 }
 @media(max-width: 767px){
     #following .user, #follower .user{
@@ -217,6 +219,12 @@ div.page ul.tweets li .remove-post {
 
 div.page ul.tweets p {
     margin: 0;
+}
+
+div.page ul.tweets li img.user-image {
+    max-width: 30px;
+    padding: 0px;
+        margin-right: 5px;
 }
 
 div.page ul.tweets li img {
@@ -315,4 +323,15 @@ dt {
 
 .comments {
     margin-left: 10px;
+}
+
+form.cmt_hide {
+    display: none;
+}
+
+a.tag {
+        visibility: hidden;
+    width: 1px;
+    height: 1px;
+    display: block;
 }

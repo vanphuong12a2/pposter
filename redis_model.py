@@ -145,7 +145,7 @@ class RedisModel(object):
     def remove_tweet(self, tweet_id):
         #remove comment => remove the img => remove tweet => pop out the tweet list
         for cmt_id in self.get_comment_ids(tweet_id):
-            self.remove_comment(cmt_id)
+            self.remove_comment(tweet_id, cmt_id)
         tweet_img = self.r.hget(get_tweet_hkey(tweet_id), TWEET_IMG)
         if tweet_img:
             if self.config['LOCAL']:
@@ -172,8 +172,9 @@ class RedisModel(object):
             else:
                 tweet[k] = unicode(val, "utf8")
             if k == TWEET_USER:
-                tweet['username'] = self.get_username(val)
-                tweet['useralias'] = self.get_useralias(val)
+                tweet[USER_NAME] = self.get_username(val)
+                tweet[USER_ALIAS] = self.get_useralias(val)
+                tweet[USER_IMG] = self.get_userimg(val)
         tweet['comments'] = self.get_comments(tweet_id)
         return tweet
 
@@ -230,7 +231,7 @@ class RedisModel(object):
     def check_alias(self, alias):
         return alias in self.r.hkeys(HUSERALIAS)
 
-    def get_user_img(self, uid):
+    def get_userimg(self, uid):
         user_img = self.r.hget(get_user_hkey(uid), USER_IMG)
         if user_img:
             if self.config['LOCAL']:
@@ -248,7 +249,7 @@ class RedisModel(object):
             if k == USER_JOINED:
                 user[k] = common.format_datetime(float(val))
             elif k == USER_IMG:
-                user[k] = self.get_user_img(uid)
+                user[k] = self.get_userimg(uid)
             else:
                 user[k] = unicode(val, "utf8")
         user['followers'] = self.get_followers(uid)
@@ -259,8 +260,8 @@ class RedisModel(object):
         user = {}
         user[USER_NAME] = self.r.hget(get_user_hkey(uid), USER_NAME)
         user[USER_ALIAS] = self.r.hget(get_user_hkey(uid), USER_ALIAS)
-        if self.get_user_img(uid):
-            user[USER_IMG] = self.get_user_img(uid)
+        if self.get_userimg(uid):
+            user[USER_IMG] = self.get_userimg(uid)
         return user
 
     def update_userinfo(self, uid, new_name=None, new_alias=None):

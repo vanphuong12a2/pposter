@@ -1,0 +1,39 @@
+{% for tweet in tweets %}
+<li>
+                <a name="jump_to_this" class="tag" href="javascript:void(0)">here</a>
+                <strong><a href="{{ url_for('user_timeline', useralias=tweet['user_alias']) }}"><img class="user-image" src="{{ url_for('static', filename=tweet['user_img']) }}">{{ tweet['user_name'] }}</a></strong>
+                <small>{{ tweet['tweet_time'] }}</small>
+                {{ tweet['tweet_content'] }}
+                {% if tweet['tweet_img']  %}
+                <div class="tweet-image">
+                    {% if g.test %} 
+                    <img src="{{ url_for('static', filename=tweet['tweet_img']) }}">
+                    {% else %}
+                    <img src="data:image/jpeg;base64,{{tweet['tweet_img']}}"/>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if request.endpoint not in ['public_timeline', 'public_timelinejson'] and tweet['user_alias'] == g.curr_user['alias'] %}
+                    {% if request.endpoint == 'user_timeline' %}
+                    <a class="remove-post"  href="{{url_for('remove_tweet', useralias=timelineowner['user_alias'],tweet_id=tweet['tweet_id'])}}">del</a>
+                    {% else %}    
+                    <a class="remove-post"  href="{{url_for('remove_tweet', tweet_id=tweet['tweet_id'])}}">del</a>
+                    {% endif %}    
+                {% endif %}
+                <div class="comments">
+                    {% for comment in tweet['comments'] %}
+                        <div class="comment">
+                            <p><a href="{{url_for('user_timeline', useralias=comment['comment_useralias'])}}"><strong>{{comment['comment_username']}}</strong></a> {{comment['comment_content']}}</p>
+                        </div>
+                    {% endfor %} 
+                    {% if request.endpoint != 'public_timeline'%}
+                    <a href="javascript:void(0)" class="link-comment{{tweet['tweet_id']}}" onclick="comment({{tweet['tweet_id']}})">reply</a>
+                    <form class="post-comment{{tweet['tweet_id']}} form-inline cmt_hide" action="{% if request.endpoint == 'user_timeline' %} {{ url_for('add_comment', useralias=timelineowner['user_alias'], tweet_id=tweet['tweet_id']) }} {% else %} {{ url_for('add_comment', tweet_id=tweet['tweet_id']) }} {% endif %}" method="post">
+                        <input class="form-control" type="text" name="content" > 
+                        <input type="submit" class="btn" value="Post">
+                    </form>
+                    {%endif%}
+                </div>
+                {% else %}
+                <li><em>There's no message so far.</em>
+            {% endfor %}

@@ -4,3 +4,7 @@ dump.rdb
 static/tmp
 static/client_secrets.json
 *.swp
+.DS_Store
+.coverage
+static/.DS_Store
+templates/.DS_Store
