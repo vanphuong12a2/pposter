@@ -1,7 +1,13 @@
 {% for tweet in tweets %}
 <li>
                 <a name="jump_to_this" class="tag" href="javascript:void(0)">here</a>
-                <strong><a href="{{ url_for('user_timeline', useralias=tweet['user_alias']) }}"><img class="user-image" src="{{ url_for('static', filename=tweet['user_img']) }}">{{ tweet['user_name'] }}</a></strong>
+                <strong><a href="{{ url_for('user_timeline', useralias=tweet['user_alias']) }}">
+                        {% if g.test %}
+                            <img class="user-image" src="{{ url_for('static', filename=tweet['user_img']) }}">
+                            {% else %}
+                            <img class="user-image" src="data:image/jpeg;base64,{{tweet['user_img']}}"/>
+                            {%endif%}
+                            {{ tweet['user_name'] }}</a></strong>
                 <small>{{ tweet['tweet_time'] }}</small>
                 {{ tweet['tweet_content'] }}
                 {% if tweet['tweet_img']  %}

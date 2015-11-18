@@ -16,16 +16,12 @@
         </div> 
         <div class="col-md-3 col-sm-3 col-xs-12">
             <div class="col-md-12 avatar">
-                {% if timelineowner['user_img'] %}
                     {% if g.test %}
                         <img class="img-responsive" src="{{ url_for('static', filename=timelineowner['user_img']) }}">
                     {% else %}
                         <img class="img-responsive" src="data:image/jpeg;base64,{{timelineowner['user_img']}}"/>
                     {% endif %}
-                {% else %}
-                    <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                {% endif%}    
-                {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
+                    {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
                     <a class="change-avatar" href="javascript:void(0)">change avatar</a>
                     <form class="col-md-12 choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
                         <dl>
@@ -115,15 +111,11 @@
         {% for fol in timelineowner['followings'] %}
             <div class="user">              
                 <div class="col-md-3 col-sm-3 col-xs-12">
-                    {% if fol['user_img'] %}
                         {% if g.test %}
                             <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
                         {% else %}
                             <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
                         {% endif %}
-                    {% else %}
-                        <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                    {% endif %}   
                 </div>
                 <div class="col-md-9">
                     <div class="row">
@@ -140,15 +132,11 @@
         {% for fol in timelineowner['followers'] %}
             <div class="user">          
                 <div class="col-md-3 col-sm-3 col-xs-12">
-                    {% if fol['user_img'] %}
                         {% if g.test %}
                         <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
                         {% else %}
                         <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
                         {% endif %}
-                    {% else %}
-                    <img class="img-responsive" src="https://g.twimg.com/Twitter_logo_blue.png" alt="twitter">
-                    {% endif %}
                 </div>
                 <div class="col-md-9">
                     <div class="row">

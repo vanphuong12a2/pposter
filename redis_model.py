@@ -30,6 +30,7 @@ COMMENT_CONTENT = 'comment_content'
 COMMENT_TIME = 'comment_time'
 COMMENT_USERALIAS = 'comment_useralias'
 COMMENT_USERNAME = 'comment_username'
+COMMENTS = 'comments'
 
 
 def get_tweet_hkey(tweet_id):
@@ -75,6 +76,8 @@ class RedisModel(object):
         self.r.flushdb()
 
     def get_s3_filename(self, filename):
+        if filename == self.config['DEFAULT_AVA']:
+            return filename
         if self.config['TEST']:
             filename = 'db' + str(self.onfig['REDIS_TEST_DB']) + '_' + filename
         else:
@@ -151,7 +154,7 @@ class RedisModel(object):
             if self.config['LOCAL']:
                 pass
             else:
-                self.s3_delete(os.path.join(self.config['UPLOAD_FOLDER'], tweet_img))
+                self.s3_delete(self.config['BUCKET'], tweet_img)
         self.r.delete(get_tweet_hkey(tweet_id))
         self.r.lrem(TWEETS, 0, tweet_id)
         return 1
@@ -175,7 +178,7 @@ class RedisModel(object):
                 tweet[USER_NAME] = self.get_username(val)
                 tweet[USER_ALIAS] = self.get_useralias(val)
                 tweet[USER_IMG] = self.get_userimg(val)
-        tweet['comments'] = self.get_comments(tweet_id)
+        tweet[COMMENTS] = self.get_comments(tweet_id)
         return tweet
 
     def get_tweets(self, lusers=None, offset=None):
@@ -193,13 +196,16 @@ class RedisModel(object):
             twits.append(tweet)
         return (twits, more_tweet)
 
+    def get_user_from_tweet(self, tweet_id):
+        return self.r.hget(get_tweet_hkey(tweet_id), TWEET_USER)
+
     def is_registered(self, email):
         return email in self.r.lrange(USERS, 0, -1)
 
     def add_user(self, email, name, password=None, img=None):
         joined = time.time()
         useralias = self.set_new_useralias()
-        self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_ALIAS: useralias})
+        self.r.hmset(get_user_hkey(email), {USER_NAME: name, USER_PASS: password, USER_JOINED: joined, USER_ALIAS: useralias, USER_IMG: self.config['DEFAULT_AVA']})
         self.r.lpush(USERS, email)
         self.r.hset(HUSERALIAS, useralias, email)
         return email
@@ -211,7 +217,9 @@ class RedisModel(object):
         if self.config['LOCAL']:
             avatar.save(os.path.join(self.config['UPLOAD_FOLDER'], new_imgname))
         else:
-            self.s3_delete(self.config['BUCKET'], self.r.hget(get_user_hkey(uid), USER_IMG))
+            old_img = self.r.hget(get_user_hkey(uid), USER_IMG)
+            if old_img != self.config['DEFAULT_AVA']:
+                self.s3_delete(self.config['BUCKET'], old_img)
             self.s3_put(self.config['BUCKET'], new_imgname, avatar)
         self.r.hmset(get_user_hkey(uid), {USER_IMG: new_imgname})
 

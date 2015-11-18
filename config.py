@@ -22,3 +22,6 @@ BUCKET = 'hdems-test-01-phuong-pposter'
 
 TWEET_MAX_LEN = 250
 TWEETS_PER_PAGE = 5
+
+DEFAULT_AVA = 'default_ava.png'
+MAX_CONTENT_LENGTH = 2 * 1024 * 1024

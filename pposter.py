@@ -113,27 +113,29 @@ def logout():
     return redirect(url_for('timeline'))
 
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def timeline():
     if g.curr_user is None:
         return render_template('login.html')
     error = None
-    if 'error' in request.args:
-        error = request.args['error']
+    if 'error' in session:
+        error = session['error']
+        session.pop('error')
     lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
     tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0)
     return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, error=error)
 
 
-@app.route('/<useralias>', methods=['GET'])
+@app.route('/<useralias>')
 def user_timeline(useralias):
     if g.curr_user is None:
         return render_template('login.html')
     uid = model.get_userid(useralias)
     if model.is_registered(uid):
         error = None
-        if 'error' in request.args:
-            error = request.args['error']
+        if 'error' in session:
+            error = session['error']
+            session.pop('error')
         tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0)
         timelineowner = model.get_user_info(uid)
         timelineowner['followed'] = model.check_followed(session['user_id'], uid)
@@ -203,17 +205,14 @@ def update_userinfo(useralias):
         if useralias != g.curr_user['alias']:
             flash("Illegal access")
             return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
-        if request.method == 'POST':
-            new_name = request.form['name']
-            new_alias = request.form['alias']
-            if not model.check_alias(new_alias):
-                model.update_userinfo(session['user_id'], new_name, new_alias)
-                return redirect(url_for('user_timeline', useralias=new_alias))
-            else:
-                error = "Alias was used!"
-                return redirect(url_for('user_timeline', useralias=useralias, error=error))
+        new_name = request.form['name']
+        new_alias = request.form['alias']
+        if new_alias == useralias or not model.check_alias(new_alias):
+            model.update_userinfo(session['user_id'], new_name, new_alias)
+            return redirect(url_for('user_timeline', useralias=new_alias))
         else:
-            abort(404)
+            session['error'] = "Alias was used!"
+            return redirect(url_for('user_timeline', useralias=useralias))
 
 
 @app.route('/public')
@@ -241,23 +240,23 @@ def add_tweet(useralias=None):
         flash("Illegal access")
         return redirect(url_for('user_timeline', useralias=g.curr_alias['alias']))
     error = None
-    if request.method == 'POST':
-        tweet_content = request.form['tweet']
-        if len(tweet_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
-            error = "Tweet length error!"
+    tweet_content = request.form['tweet']
+    if len(tweet_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
+        error = "Tweet length error!"
+    else:
+        tweet_file = request.files['img']
+        if tweet_file and not common.is_allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
+            error = "File ext not supported!"
         else:
-            tweet_file = request.files['img']
-            if tweet_file and not common.is_allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
-                error = "File ext not supported!"
+            if tweet_file:
+                model.add_tweet(tweet_content, session['user_id'], tweet_file)
             else:
-                if tweet_file:
-                    model.add_tweet(tweet_content, session['user_id'], tweet_file)
-                else:
-                    model.add_tweet(tweet_content, session['user_id'])
-        if useralias is None:
-            return redirect(url_for('timeline', error=error))
-        else:
-            return redirect(url_for('user_timeline', useralias=useralias, error=error))
+                model.add_tweet(tweet_content, session['user_id'])
+    session['error'] = error
+    if useralias is None:
+        return redirect(url_for('timeline'))
+    else:
+        return redirect(url_for('user_timeline', useralias=useralias))
 
 
 @app.route('/remove_tweet', methods=['GET'])
@@ -271,6 +270,9 @@ def remove_tweet(useralias=None):
     if 'tweet_id' not in request.args:
         return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
     tweet_id = request.args['tweet_id']
+    if model.get_user_from_tweet(tweet_id) != session['user_id']:
+        flash("Illegal access")
+        redirect(url_for('timeline'))
     model.remove_tweet(tweet_id)
     if useralias is not None:
         return redirect(url_for('user_timeline', useralias=useralias))
@@ -282,21 +284,19 @@ def remove_tweet(useralias=None):
 def add_comment(useralias=None):
     if g.curr_user is None:
         return render_template('login.html')
-    if request.method == 'POST':
-        error = None
-        comment_content = request.form['content']
-        if len(comment_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
-            error = "Comment length error"
-        else:
-            tweet_id = request.args['tweet_id']
-            model.add_comment(tweet_id, session['user_id'], comment_content)
-        if useralias is not None:
-            #TODO: back to the tweet position!!!
-            return redirect(url_for('user_timeline', useralias=useralias, error=error))
-        else:
-            return redirect(url_for('timeline', error=error))
+    error = None
+    comment_content = request.form['content']
+    if len(comment_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
+        error = "Comment length error"
     else:
-        abort(404)
+        tweet_id = request.args['tweet_id']
+        model.add_comment(tweet_id, session['user_id'], comment_content)
+    session['error'] = error
+    if useralias is not None:
+        #TODO: back to the tweet position!!!
+        return redirect(url_for('user_timeline', useralias=useralias))
+    else:
+        return redirect(url_for('timeline'))
 
 
 if __name__ == '__main__':
