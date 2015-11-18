@@ -331,7 +331,7 @@ form.cmt_hide {
 }
 
 a.tag {
-        visibility: hidden;
+    visibility: hidden;
     width: 1px;
     height: 1px;
     display: block;

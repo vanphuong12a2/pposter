@@ -117,13 +117,15 @@ def logout():
 def timeline():
     if g.curr_user is None:
         return render_template('login.html')
-    error = None
-    if 'error' in session:
-        error = session['error']
-        session.pop('error')
+    param = {}
+    for key in ['error', 'anchor']:
+        param[key] = None
+        if key in session:
+            param[key] = session[key]
+            session.pop(key)
     lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
-    tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0)
-    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, error=error)
+    tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0, anchor=param['anchor'])
+    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, error=param['error'])
 
 
 @app.route('/<useralias>')
@@ -132,14 +134,16 @@ def user_timeline(useralias):
         return render_template('login.html')
     uid = model.get_userid(useralias)
     if model.is_registered(uid):
-        error = None
-        if 'error' in session:
-            error = session['error']
-            session.pop('error')
-        tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0)
+        param = {}
+        for key in ['error', 'anchor']:
+            param[key] = None
+            if key in session:
+                param[key] = session[key]
+                session.pop(key)
+        tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0, anchor=param['anchor'])
         timelineowner = model.get_user_info(uid)
         timelineowner['followed'] = model.check_followed(session['user_id'], uid)
-        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet, error=error)
+        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet, error=param['error'])
     else:
         flash("There is no user with that id")
         return redirect(url_for('timeline'))
@@ -273,10 +277,11 @@ def remove_tweet(useralias=None):
     if model.get_user_from_tweet(tweet_id) != session['user_id']:
         flash("Illegal access")
         redirect(url_for('timeline'))
-    model.remove_tweet(tweet_id)
+    next_tweet = model.remove_tweet(tweet_id)
+    session['anchor'] = next_tweet
     if useralias is not None:
-        return redirect(url_for('user_timeline', useralias=useralias))
-    return redirect(url_for('timeline'))
+        return redirect(url_for('user_timeline', useralias=useralias, _anchor=next_tweet))
+    return redirect(url_for('timeline', _anchor=next_tweet))
 
 
 @app.route('/add_comment', methods=['POST'])
@@ -292,11 +297,12 @@ def add_comment(useralias=None):
         tweet_id = request.args['tweet_id']
         model.add_comment(tweet_id, session['user_id'], comment_content)
     session['error'] = error
+    session['anchor'] = tweet_id
     if useralias is not None:
         #TODO: back to the tweet position!!!
-        return redirect(url_for('user_timeline', useralias=useralias))
+        return redirect(url_for('user_timeline', useralias=useralias, _anchor=tweet_id))
     else:
-        return redirect(url_for('timeline'))
+        return redirect(url_for('timeline', _anchor=tweet_id))
 
 
 if __name__ == '__main__':

@@ -156,8 +156,13 @@ class RedisModel(object):
             else:
                 self.s3_delete(self.config['BUCKET'], tweet_img)
         self.r.delete(get_tweet_hkey(tweet_id))
+        #Try to return the next tweet
+        tweet_ids = self.r.lrange(TWEETS, 0, -1)
+        next_tweet = tweet_ids[0]
+        if tweet_id in tweet_ids:
+            next_tweet = tweet_ids[tweet_ids.index(tweet_id) - 1]
         self.r.lrem(TWEETS, 0, tweet_id)
-        return 1
+        return next_tweet
 
     def get_tweet(self, tweet_id):
         tname = get_tweet_hkey(tweet_id)
@@ -181,16 +186,24 @@ class RedisModel(object):
         tweet[COMMENTS] = self.get_comments(tweet_id)
         return tweet
 
-    def get_tweets(self, lusers=None, offset=None):
+    def get_tweets(self, lusers=None, offset=None, anchor=None):
         twits = []
         tweet_ids = self.r.lrange(TWEETS, 0, -1)
         if lusers is not None:
             tweet_ids = [tid for tid in tweet_ids if self.r.hget(get_tweet_hkey(tid), TWEET_USER) in lusers]
         more_tweet = False
-        if offset is not None:
-            offset_end = offset + self.config['TWEETS_PER_PAGE']
-            more_tweet = offset_end < len(tweet_ids)
-            tweet_ids = tweet_ids[offset:offset_end]
+        if anchor is not None:
+            if anchor in tweet_ids:
+                index = tweet_ids.index(anchor) + 1
+                nopages = int(index / self.config['TWEETS_PER_PAGE']) + (index % self.config['TWEETS_PER_PAGE'] > 0)
+                tweet_ids = tweet_ids[:(nopages * self.config['TWEETS_PER_PAGE'])]
+            else:
+                tweet_ids = tweet_ids[:self.config['TWEETS_PER_PAGE']]
+        else:
+            if offset is not None:
+                offset_end = offset + self.config['TWEETS_PER_PAGE']
+                more_tweet = offset_end < len(tweet_ids)
+                tweet_ids = tweet_ids[offset:offset_end]
         for tid in tweet_ids:
             tweet = self.get_tweet(tid)
             twits.append(tweet)
