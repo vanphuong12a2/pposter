@@ -190,12 +190,9 @@ def update_avatar(useralias):
         if useralias != g.curr_user['alias']:
             flash("Illegal access")
             return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
-        if request.method == 'POST':
-            new_avatar = request.files['avatar']
-            model.add_user_avatar(session['user_id'], new_avatar)
-            return redirect(url_for('user_timeline', useralias=useralias))
-        else:
-            abort(404)
+        new_avatar = request.files['avatar']
+        model.add_user_avatar(session['user_id'], new_avatar)
+        return redirect(url_for('user_timeline', useralias=useralias))
 
 
 @app.route('/<useralias>/update_info', methods=['POST'])
@@ -245,14 +242,14 @@ def add_tweet(useralias=None):
     if len(tweet_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
         error = "Tweet length error!"
     else:
-        tweet_file = request.files['img']
-        if tweet_file and not common.is_allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
-            error = "File ext not supported!"
+        if 'img' not in request.files:
+            model.add_tweet(tweet_content, session['user_id'])
         else:
-            if tweet_file:
-                model.add_tweet(tweet_content, session['user_id'], tweet_file)
+            tweet_file = request.files['img']
+            if not common.is_allowed_file(tweet_file.filename, app.config['ALLOWED_EXTENSIONS']):
+                error = "File ext not supported!"
             else:
-                model.add_tweet(tweet_content, session['user_id'])
+                model.add_tweet(tweet_content, session['user_id'], tweet_file)
     session['error'] = error
     if useralias is None:
         return redirect(url_for('timeline'))
@@ -290,11 +287,15 @@ def add_comment(useralias=None):
     comment_content = request.form['content']
     if len(comment_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
         error = "Comment length error"
+        tweet_id = 0
+    elif useralias and not model.is_registered(model.get_userid(useralias)):
+        return redirect(url_for('timeline'))
     else:
         tweet_id = request.args['tweet_id']
         model.add_comment(tweet_id, session['user_id'], comment_content)
-    session['error'] = error
+
     session['anchor'] = tweet_id
+    session['error'] = error
     if useralias is not None:
         #TODO: back to the tweet position!!!
         return redirect(url_for('user_timeline', useralias=useralias, _anchor=tweet_id))

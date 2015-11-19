@@ -43,15 +43,15 @@ class PposterTestCase(unittest.TestCase):
             password=password,
             password2=password2), follow_redirects=True)
 
-    def login_with_google(self):
-        #TODO
-        pass
-
-    def add_tweet(self, tweet_content, tweet_img, useralias=None):
-        if useralias:
-            return self.app.post('/' + useralias + '/add_tweet', data=dict(tweet=tweet_content, img=tweet_img), follow_redirects=True)
+    def add_tweet(self, tweet_content, tweet_img=None, useralias=None):
+        if tweet_img is None:
+            data = dict(tweet=tweet_content)
         else:
-            return self.app.post('/add_tweet', data=dict(tweet=tweet_content, img=tweet_img), follow_redirects=True)
+            data = dict(tweet=tweet_content, img=tweet_img)
+        if useralias:
+            return self.app.post('/' + useralias + '/add_tweet', data=data, follow_redirects=True)
+        else:
+            return self.app.post('/add_tweet', data=data, follow_redirects=True)
 
     def remove_tweet(self, tweet_id, useralias=None):
         if useralias:
@@ -66,11 +66,10 @@ class PposterTestCase(unittest.TestCase):
         return self.app.post('/' + useralias + '/update_info', data=dict(name=new_name, alias=new_alias), follow_redirects=True)
 
     def add_comment(self, tweet_id, content, useralias=None):
-        #TODO
         if useralias:
-            return self.app.post('/' + useralias + '/add_comment', data=dict(comment_content=content, tweet_id=tweet_id), follow_redirects=True)
+            return self.app.post('/' + useralias + '/add_comment?tweet_id=' + str(tweet_id), data=dict(content=content), follow_redirects=True)
         else:
-            return self.app.post('/add_comment', data=dict(comment_content=content, tweet_id=tweet_id), follow_redirects=True)
+            return self.app.post('/add_comment?tweet_id=' + str(tweet_id), data=dict(content=content), follow_redirects=True)
 
     def assert_flashes(self, expected_message, expected_category='message'):
         with self.app.session_transaction() as session:
@@ -114,6 +113,10 @@ class PposterTestCase(unittest.TestCase):
     def test_login_logout(self):
         rv = self.success_login('test')
         assert 'log out' in rv.data
+        rv = self.app.get('/login', follow_redirects=True)
+        assert 'log out' in rv.data
+        rv = self.app.get('/register', follow_redirects=True)
+        assert 'log out' in rv.data
         self.assert_flashes('You were logged in')
         rv = self.logout()
         self.assert_flashes('out')
@@ -122,7 +125,15 @@ class PposterTestCase(unittest.TestCase):
         rv = self.login('test@gmail.com', 'fakepass')
         assert 'Wrong user' in rv.data
         #TODO: test log in with Google
-        rv = self.login_with_google()
+        self.success_login('test')
+        rv = self.app.get('/google_auth', follow_redirects=True)
+        assert 'log out' in rv.data
+        rv = self.app.get('/auth_return', follow_redirects=True)
+        assert 'log out' in rv.data
+        self.logout()
+        #rv = self.app.get('/google_auth', follow_redirects=True)
+        #assert 'Authentication failed, please log in again!' in rv.data
+        #TODO: create a mock oauth here
 
     def test_session(self):
         rv = self.app.get('/')
@@ -152,8 +163,10 @@ class PposterTestCase(unittest.TestCase):
         assert "There's no message so far." not in rv.data
 
     def test_user_timeline(self):
+        rv = self.app.get('/user1001', follow_redirects=True)
+        assert 'log in' in rv.data
         self.success_login('test')
-        rv = self.app.get('/user1001')
+        rv = self.app.get('/user1001', follow_redirects=True)
         assert 'test' in rv.data
         assert "What\'s on your mind" in rv.data
         assert "There's no message so far." in rv.data
@@ -163,7 +176,7 @@ class PposterTestCase(unittest.TestCase):
 
         self.logout()
         self.success_login('user2')
-        rv = self.app.get('/user1001')
+        rv = self.app.get('/user1001', follow_redirects=True)
         assert 'test' in rv.data
         assert "What\'s on your mind" not in rv.data
         assert "change avatar" not in rv.data
@@ -178,6 +191,11 @@ class PposterTestCase(unittest.TestCase):
         assert 'Test tweet' in rv.data
 
     def test_add_remove_tweet(self):
+        rv = self.add_tweet('', None, 'user1001')
+        assert 'log in' in rv.data
+        rv = self.remove_tweet(3)
+        assert 'log in' in rv.data
+
         self.success_login('test')
         rv = self.app.get('/user1001')
 
@@ -185,9 +203,8 @@ class PposterTestCase(unittest.TestCase):
         assert 'Tweet length error' in rv.data
         rv = self.add_tweet('Test tweet', (StringIO('fake image'), 'image.png'), 'user1002')
         self.assert_flashes('Illegal access')
-        rv = self.add_tweet('Test tweet', (StringIO('fake image'), 'image.png'), 'user1001')
+        rv = self.add_tweet('Test tweet')
         assert 'Test tweet' in rv.data
-        assert '<div class="tweet-image">' in rv.data
         assert "There's no message so far." not in rv.data
 
         self.add_tweet('Test 2', (StringIO('fake image'), 'image.png'), 'user1001')
@@ -210,7 +227,27 @@ class PposterTestCase(unittest.TestCase):
         rv = self.remove_tweet(2, 'user1001')
         assert 'Test 2' not in rv.data
 
+        rv = self.app.get('/remove_tweet', follow_redirects=True)
+        assert 'change avatar' in rv.data
+
+        #Add tweet with valid file
+        img = open('./static/tmp/default_ava.png', 'rb')
+        rv = self.add_tweet('Tweet with img', img, 'user1001')
+        img.close()
+        assert 'Tweet with img' in rv.data
+        assert '<div class="tweet-image">' in rv.data
+
+        #Add tweet with invalid file
+        img2 = open('./static/tmp/style.css', 'rb')
+        rv = self.add_tweet('Tweet with img', img2, 'user1001')
+        img2.close()
+        assert 'File ext not supported!' in rv.data
+
     def test_follow_unfollow(self):
+        rv = self.app.get('/user1001/follow', follow_redirects=True)
+        assert 'log in' in rv.data
+        rv = self.app.get('/user1001/unfollow', follow_redirects=True)
+        assert 'log in' in rv.data
         self.success_login('user1')
         rv = self.add_tweet('Test tweet', (StringIO('fake image'), 'image.png'), 'user1001')
         self.logout()
@@ -256,6 +293,10 @@ class PposterTestCase(unittest.TestCase):
         assert 'Test tweet from #2' in rv.data
 
     def test_update_info(self):
+        rv = self.update_info('user1001', 'phuong', 'user1001')
+        assert 'log in' in rv.data
+        rv = self.update_avatar('user1001', (StringIO('fake image'), 'image.png'))
+        assert 'log in' in rv.data
         self.success_login('user1')
         rv = self.update_info('user1001', 'phuong', 'user1001')
         assert 'phuong' in rv.data
@@ -287,6 +328,8 @@ class PposterTestCase(unittest.TestCase):
 
     def test_ajax(self):
         #TODO: login and add a lot of tweet
+        rv = self.app.get('/timelinejson', follow_redirects=True)
+        assert 'log in' in rv.data
         self.success_login('user1')
         for i in range(self.config['TWEETS_PER_PAGE'] + 5):
             rv = self.add_tweet('Test tweet no ' + str(i + 1), (StringIO('fake image'), 'image.png'))
@@ -306,21 +349,33 @@ class PposterTestCase(unittest.TestCase):
         assert 'Test tweet no 4' in rv.data
 
     def test_add_comment(self):
-        #TODO: login add tweet => add comment
-        self.success_login('user1')
-        rv = self.add_tweet('Test tweet', (StringIO('fake image'), 'image.png'), 'user1001')
         rv = self.add_comment(1, 'cmt content')
-        rv = self.add_comment(1, 'cmt content', 'user1001')
-        rv = self.add_comment(1, 'cmt content', 'user1002')
+        assert 'log in' in rv.data
+        self.success_login('user1')
+        rv = self.add_tweet('Test tweet')
+        rv = self.add_comment(1, '')
+        assert 'Comment length error' in rv.data
+        rv = self.add_comment(1, 'cmt content')
+        assert 'cmt content' in rv.data
+        rv = self.add_comment(2, 'nothing')
+        assert 'nothing' not in rv.data
+        rv = self.add_comment(1, 'cmt content #3', 'user1001')
+        assert 'cmt content #3' in rv.data
+        assert 'user1001' in rv.data
+        rv = self.add_comment(1, 'cmt content #4', 'user1002')
+        assert 'cmt content #4' not in rv.data
         rv = self.app.get('/public')
+        assert 'cmt content' in rv.data
         rv = self.app.get('/user1001')
+        assert 'cmt content' in rv.data
         rv = self.app.get('/')
+        assert 'cmt content' in rv.data
 
         #remove tweet with comments
         for i in range(5):
             self.add_comment(1, 'cmt:' + str(i))
         rv = self.remove_tweet(1)
-        assert rv
+        assert 'cmt:' not in rv.data
 
     def test_anchor(self):
         self.success_login('user1')
