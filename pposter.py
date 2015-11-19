@@ -13,13 +13,13 @@ import httplib2
 import json
 from apiclient.discovery import build
 from flask_jsglue import JSGlue
-from redis_model import RedisModel
-import common
+from model.redis_model import RedisModel
+import lib.common as common
 
 jsglue = JSGlue()
 app = Flask(__name__)
 jsglue.init_app(app)
-app.config.from_object('config')
+app.config.from_object('config.config')
 app.config.from_envvar('PPOSTER_SETTINGS', silent=True)
 
 model = RedisModel(app.config)
@@ -94,14 +94,11 @@ def auth_return():
         http = credentials.authorize(http)
         service = build('plus', 'v1', http=http)
         user_info = service.people().get(userId='me').execute()
-        if user_info['id'] == app.config['GOOGLE_ID']:
-            session['user_id'] = user_info['emails'][0]['value']
-            if not model.is_registered(session['user_id']):
-                model.add_user(session['user_id'], user_info['name']['givenName'])
-            flash("You were logged in!")
-            return redirect(url_for('timeline'))
-        else:
-            return render_template('layout.html', error='Wrong user!')
+        session['user_id'] = user_info['emails'][0]['value']
+        if not model.is_registered(session['user_id']):
+            model.add_user(session['user_id'], user_info['name']['givenName'])
+        flash("You were logged in!")
+        return redirect(url_for('timeline'))
     else:
         return render_template('layout.html', error='Authentication failed, please log in again!')
 
@@ -242,7 +239,7 @@ def add_tweet(useralias=None):
         return render_template('login.html')
     if useralias is not None and useralias != g.curr_user['alias']:
         flash("Illegal access")
-        return redirect(url_for('user_timeline', useralias=g.curr_alias['alias']))
+        return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
     error = None
     tweet_content = request.form['tweet']
     if len(tweet_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
@@ -270,13 +267,13 @@ def remove_tweet(useralias=None):
         return render_template('login.html')
     if useralias is not None and useralias != g.curr_user['alias']:
         flash("Illegal access")
-        return redirect(url_for('user_timeline', useralias=g.curr_alias['alias']))
+        return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
     if 'tweet_id' not in request.args:
         return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
     tweet_id = request.args['tweet_id']
     if model.get_user_from_tweet(tweet_id) != session['user_id']:
         flash("Illegal access")
-        redirect(url_for('timeline'))
+        return redirect(url_for('timeline'))
     next_tweet = model.remove_tweet(tweet_id)
     session['anchor'] = next_tweet
     if useralias is not None:

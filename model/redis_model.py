@@ -1,10 +1,12 @@
 import base64
 import os
-import common
 import time
 from werkzeug import secure_filename
 import redis
 import boto3
+import sys
+sys.path.append("../")
+import lib.common as common
 
 NEW_TWEET_ID = 'new_tweet_id'
 TWEETS = 'tweet_ids'
@@ -79,7 +81,7 @@ class RedisModel(object):
         if filename == self.config['DEFAULT_AVA']:
             return filename
         if self.config['TEST']:
-            filename = 'db' + str(self.onfig['REDIS_TEST_DB']) + '_' + filename
+            filename = 'db' + str(self.config['REDIS_TEST_DB']) + '_' + filename
         else:
             filename = 'db' + str(self.config['REDIS_DB']) + '_' + filename
         return filename

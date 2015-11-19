@@ -1,9 +1,0 @@
-Name               Stmts   Miss  Cover
---------------------------------------
-common.py             17      0   100%
-config.py             21      0   100%
-pposter.py           230     76    67%
-pposter_tests.py     157      7    96%
-redis_model.py       266     56    79%
---------------------------------------
-TOTAL                691    139    80%

@@ -208,7 +208,7 @@ div.page ul.tweets li .remove-post {
     float: left;
     width: 50%;
     margin: 20px auto;
-    max-height: 250px;
+    height: 100px;
     min-height: 80px;
     overflow: hidden;
 }

@@ -3,72 +3,72 @@
 {% if error %}<div class="error bg-danger"><strong>Error:</strong> {{ error }}</div>{% endif %}
 <div class="row">
     {% if g.curr_user %}
-        {% if request.endpoint == 'user_timeline' %}
-        <div class="col-md-12">
-            <h2>{{timelineowner['name']}}</h2>   
+    {% if request.endpoint == 'user_timeline' %}
+	<div class="col-md-12">
+            <h2>{{timelineowner['user_name']}}</h2>   
             {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
-                {% if timelineowner['followed'] %}
-                <a class='follow' href="{{url_for('unfollow',useralias=timelineowner['user_alias'])}}">unfollow</a>
-                {% else %}
-                <a class='follow' href="{{url_for('follow',useralias=timelineowner['user_alias'])}}">follow</a>
-                {% endif %}
+            {% if timelineowner['followed'] %}
+            <a class='follow' href="{{url_for('unfollow',useralias=timelineowner['user_alias'])}}">unfollow</a>
+            {% else %}
+            <a class='follow' href="{{url_for('follow',useralias=timelineowner['user_alias'])}}">follow</a>
             {% endif %}
-        </div> 
-        <div class="col-md-3 col-sm-3 col-xs-12">
+            {% endif %}
+	</div> 
+	<div class="col-md-3 col-sm-3 col-xs-12">
             <div class="col-md-12 avatar">
-                    {% if g.test %}
-                        <img class="img-responsive" src="{{ url_for('static', filename=timelineowner['user_img']) }}">
-                    {% else %}
-                        <img class="img-responsive" src="data:image/jpeg;base64,{{timelineowner['user_img']}}"/>
-                    {% endif %}
-                    {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
-                    <a class="change-avatar" href="javascript:void(0)">change avatar</a>
-                    <form class="col-md-12 choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
-                        <dl>
-                            <dt>choose:<dd><input type="file" name="avatar"  accept=".jpg,.jpeg,.png"/>
-                        </dl>    
-                        <div class="action">
-                            <input class="btn" type="submit" value="submit" />
-                        </div>
-                    </form>
+                {% if g.test %}
+                <img class="img-responsive" src="{{ url_for('static', filename=timelineowner['user_img']) }}">
+                {% else %}
+                <img class="img-responsive" src="data:image/jpeg;base64,{{timelineowner['user_img']}}"/>
+                {% endif %}
+                {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
+                <a class="change-avatar" href="javascript:void(0)">change avatar</a>
+                <form class="col-md-12 choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
+                    <dl>
+                        <dt>choose:<dd><input type="file" name="avatar"  accept=".jpg,.jpeg,.png"/>
+                    </dl>    
+                    <div class="action">
+                        <input class="btn" type="submit" value="submit" />
+                    </div>
+                </form>
                 {% endif %}
             </div>
-        </div>
-        <div class="col-md-9">
+	</div>
+	<div class="col-md-9">
             <div class="row userinfo">
                 <div class="col-md-12">
-                    <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
-                    <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>
-                    <p><strong>Username: </strong>{{timelineowner['user_name']}}</p>
-                    <p><strong>Alias: </strong>{{timelineowner['user_alias']}}</p>
+                        <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
+                        <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>
+                        <p><strong>Username: </strong>{{timelineowner['user_name']}}</p>
+                        <p><strong>Alias: </strong>{{timelineowner['user_alias']}}</p>
                 </div>
                 {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
            </div>
                 {% else %}
                 <div class="col-md-12">
-                    <a href="javascript:void(0)" onclick="updateUserinfo()">updateinfo</a>
+                        <a href="javascript:void(0)" onclick="updateUserinfo()">updateinfo</a>
                 </div>
             </div>
             <div class="row userform">
                 <div class="col-md-12">
-                <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
-                <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>    
-                <form action="{{url_for('update_userinfo', useralias=timelineowner['user_alias'])}}" method=post>
-                    <dl>
-                        <dt>Username:<dd><input class="form-control" type="text" name="name" value="{{timelineowner['user_name']}}" placeholder="user alias" />
-                        <dt>Alias:<dd><input class="form-control" type="text" name="alias" value="{{timelineowner['user_alias']}}" placeholder="status" />
-                    </dl>    
-                    <div class="action">
-                        <input class="btn" type="submit" value="submit" />
-                        <input class="btn" type="button" onclick="cancelUpdateUserinfo()" value="cancel" />
-                    </div>
-                </form>
+                    <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
+                    <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>    
+                    <form action="{{url_for('update_userinfo', useralias=timelineowner['user_alias'])}}" method=post>
+                        <dl>
+                            <dt>Username:<dd><input class="form-control" type="text" name="name" value="{{timelineowner['user_name']}}" placeholder="user alias" />
+                            <dt>Alias:<dd><input class="form-control" type="text" name="alias" value="{{timelineowner['user_alias']}}" placeholder="status" />
+                        </dl>    
+                        <div class="action">
+                            <input class="btn" type="submit" value="submit" />
+                            <input class="btn" type="button" onclick="cancelUpdateUserinfo()" value="cancel" />
+                        </div>
+                    </form>
                 </div>
             </div>
             {% endif %}
-        </div>
-        {% endif %}
-    {% endif %}
+	</div>
+	{% endif %}
+	{% endif %}
 </div>
 {% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias'] %}
 <div class="row">
@@ -111,11 +111,11 @@
         {% for fol in timelineowner['followings'] %}
             <div class="user">              
                 <div class="col-md-3 col-sm-3 col-xs-12">
-                        {% if g.test %}
-                            <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
-                        {% else %}
-                            <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
-                        {% endif %}
+                    {% if g.test %}
+                    <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
+                    {% else %}
+                    <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
+                    {% endif %}
                 </div>
                 <div class="col-md-9">
                     <div class="row">
@@ -132,11 +132,11 @@
         {% for fol in timelineowner['followers'] %}
             <div class="user">          
                 <div class="col-md-3 col-sm-3 col-xs-12">
-                        {% if g.test %}
-                        <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
-                        {% else %}
-                        <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
-                        {% endif %}
+                    {% if g.test %}
+                    <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
+                    {% else %}
+                    <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
+                    {% endif %}
                 </div>
                 <div class="col-md-9">
                     <div class="row">
@@ -193,7 +193,7 @@
     }
 
     function comment(tweet_id){
-         jQuery('.comments a.link-comment' + tweet_id).hide();
+        jQuery('.comments a.link-comment' + tweet_id).hide();
         jQuery('.comments form.post-comment' + tweet_id).show();
     }
 </script>
