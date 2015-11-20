@@ -23,7 +23,7 @@
                 {% endif %}
                 {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
                 <a class="change-avatar" href="javascript:void(0)">change avatar</a>
-                <form class="col-md-12 choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
+                <form class="choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
                     <dl>
                         <dt>choose:<dd><input type="file" name="avatar"  accept=".jpg,.jpeg,.png"/>
                     </dl>    
@@ -34,7 +34,7 @@
                 {% endif %}
             </div>
 	</div>
-	<div class="col-md-9">
+	<div class="col-md-9 col-sm-9 col-xs-12">
             <div class="row userinfo">
                 <div class="col-md-12">
                         <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
@@ -192,9 +192,15 @@
         jQuery('.userform').show();
     }
 
-    function comment(tweet_id){
-        jQuery('.comments a.link-comment' + tweet_id).hide();
-        jQuery('.comments form.post-comment' + tweet_id).show();
+    function comment(link){
+        var parent = jQuery(link).closest('.comments');
+        if(parent.length != 0){
+            var form = jQuery(parent).find('form.post-comment');
+            if(form.length != 0) {
+                jQuery(link).hide();
+                jQuery(form).show();
+            }
+        }
     }
 </script>
 {% endblock %}

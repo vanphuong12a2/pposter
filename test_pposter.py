@@ -181,6 +181,9 @@ class PposterTestCase(unittest.TestCase):
         assert "What\'s on your mind" not in rv.data
         assert "change avatar" not in rv.data
 
+        rv = self.app.get('/user1003', follow_redirects=True)
+        self.assert_flashes('There is no user with that id')
+
     def test_public_timeline(self):
         rv = self.app.get('/public')
         assert "There's no message so far." in rv.data
@@ -380,20 +383,23 @@ class PposterTestCase(unittest.TestCase):
     def test_anchor(self):
         self.success_login('user1')
         for i in range(self.config['TWEETS_PER_PAGE'] + 5):
-            rv = self.add_tweet('Test tweet no ' + str(i), (StringIO('fake image'), 'image.png'))
+            rv = self.add_tweet('Test tweet no ' + str(i + 1) + '!')
         rv = self.app.get('/')
-        rv = self.app.get('/#' + str(self.config['TWEETS_PER_PAGE'] + 1))
+        assert 'Test tweet no 1!' not in rv.data
+        assert 'Test tweet no ' + str(self.config['TWEETS_PER_PAGE'] + 1) + '!' in rv.data
 
         rv = self.app.get('/user1001')
-        rv = self.app.get('/user1001#' + str(self.config['TWEETS_PER_PAGE'] + 1))
-
+        assert 'Test tweet no 1!' not in rv.data
+        assert 'Test tweet no ' + str(self.config['TWEETS_PER_PAGE'] + 1) + '!' in rv.data
         rv = self.app.get('/public')
-        rv = self.app.get('puclic/#' + str(self.config['TWEETS_PER_PAGE'] + 1))
+        assert 'Test tweet no 1!' not in rv.data
+        assert 'Test tweet no ' + str(self.config['TWEETS_PER_PAGE'] + 1) + '!' in rv.data
 
-        rv = self.add_comment(self.config['TWEETS_PER_PAGE'] + 2, 'cmt content')
-        rv = self.remove_tweet(self.config['TWEETS_PER_PAGE'] + 3)
-        assert rv
-
+        rv = self.add_comment(2, 'cmt content')
+        assert 'Test tweet no 2' in rv.data
+        assert 'cmt content' in rv.data
+        rv = self.remove_tweet(3)
+        assert 'Test tweet no 4' in rv.data
 
 if __name__ == '__main__':
     unittest.main()
