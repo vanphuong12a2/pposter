@@ -62,7 +62,7 @@ def get_comment_hkey(cmt_id):
 class RedisModel(object):
 
     def __init__(self, config):
-        if not config['TEST']:
+        if not config['TESTING']:
             r = redis.StrictRedis(host=config['REDIS_HOST'], port=config['REDIS_PORT'], db=config['REDIS_DB'])
         else:
             r = redis.StrictRedis(host=config['REDIS_HOST'], port=config['REDIS_PORT'], db=config['REDIS_TEST_DB'])

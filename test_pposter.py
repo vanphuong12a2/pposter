@@ -6,6 +6,7 @@ Owner: Phuong Nguyen
 """
 
 import unittest
+from mock import patch
 from StringIO import StringIO
 from model.redis_model import RedisModel
 import pposter
@@ -15,7 +16,7 @@ class PposterTestCase(unittest.TestCase):
     def setUp(self):
         self.app = pposter.app.test_client()
         self.config = pposter.app.config
-        self.config['TEST'] = True
+        self.config['TESTING'] = True
         pposter.model = RedisModel(self.config)
         self.model = pposter.model
 
@@ -124,6 +125,9 @@ class PposterTestCase(unittest.TestCase):
         assert 'Wrong user' in rv.data
         rv = self.login('test@gmail.com', 'fakepass')
         assert 'Wrong user' in rv.data
+
+    @patch('pposter.auth_return')
+    def test_google_openid(self, appMock):
         #TODO: test log in with Google
         self.success_login('test')
         rv = self.app.get('/google_auth', follow_redirects=True)
@@ -131,9 +135,17 @@ class PposterTestCase(unittest.TestCase):
         rv = self.app.get('/auth_return', follow_redirects=True)
         assert 'log out' in rv.data
         self.logout()
-        #rv = self.app.get('/google_auth', follow_redirects=True)
-        #assert 'Authentication failed, please log in again!' in rv.data
-        #TODO: create a mock oauth here
+
+        rv = self.app.get('/google_auth')
+        assert '[302 FOUND]' in str(rv)
+        assert 'https://accounts.google.com/o/oauth2/auth' in rv.data
+        assert 'response_type=code' in rv.data
+        assert 'auth_return' in rv.data
+        rv = self.app.get('/auth_return', follow_redirects=True)
+        assert 'Authentication failed, please log in again!'
+
+        rv = self.app.get('/auth_return?code=fakecode', follow_redirects=True)
+        assert 'fakecode' in rv.data
 
     def test_session(self):
         rv = self.app.get('/')

@@ -88,6 +88,8 @@ def auth_return():
         return redirect(url_for('timeline'))
     flow = flow_from_clientsecrets(app.config['GCLIENT_SECRETS'], scope='profile', redirect_uri=url_for('auth_return', _external=True))
     if 'code' in request.args:
+        if app.config['TESTING']:
+            return request.args['code']
         code = request.args.get('code')
         credentials = flow.step2_exchange(code)
         http = httplib2.Http()

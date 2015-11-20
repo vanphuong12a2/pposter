@@ -11,7 +11,7 @@ A mock Twitter project developed using Flask
 - mkdir env
 - virtualenv env
 - source env/bin/activate
-- pip install -r requirements.txt
+- pip install -r config/requirements.txt
 
 # Configuation
 - Config file is in config/config.py  
