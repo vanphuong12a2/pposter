@@ -244,7 +244,7 @@ def add_tweet(useralias=None):
     if len(tweet_content) not in range(1, app.config['TWEET_MAX_LEN'] + 1):
         error = "Tweet length error!"
     else:
-        if 'img' not in request.files:
+        if 'img' not in request.files or not request.files['img']:
             model.add_tweet(tweet_content, session['user_id'])
         else:
             tweet_file = request.files['img']
