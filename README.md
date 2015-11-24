@@ -17,8 +17,11 @@ A mock Twitter project developed using Flask
 - Config file is in config/config.py 
 
 # Deploy
+
 uWsgiconfig: pposter.ini
+
 nginx config:
+```
 server{
         listen               443;
         ssl                  on;
@@ -26,9 +29,9 @@ server{
         ssl_certificate_key  path to key;
         server_name  localhost;
 
-
         location / {
                 include uwsgi_params;
                 uwsgi_pass unix:/tmp/pposter.sock;
         } 
 }
+```
