@@ -265,6 +265,10 @@ class PposterTestCase(unittest.TestCase):
         assert 'log in' in rv.data
         self.success_login('user1')
         rv = self.add_tweet('Test tweet', (StringIO('fake image'), 'image.png'), 'user1001')
+        rv = self.app.get('/user1001/follow', follow_redirects=True)
+        #TODO
+        rv = self.app.get('/user1001/unfollow', follow_redirects=True)
+        #TODO
         self.logout()
         self.success_login('user2')
         rv = self.app.get('/user1001/follow', follow_redirects=True)

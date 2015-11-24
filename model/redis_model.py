@@ -35,6 +35,17 @@ COMMENT_USERNAME = 'comment_username'
 COMMENTS = 'comments'
 
 
+NEW_NOTI_ID = 'new_noti_id'
+NOTI_CREATOR = 'noti_creator'
+NOTI_TYPE = 'noti_type'
+NOTI_TWEET = 'noti_tweet'
+NOTI_TIME = 'noti_time'
+NOTI_READ = 'noti_read'
+
+FOLLOW_NOTI = 'follow_noti'
+COMMENT_NOTI = 'comment_noti'
+
+
 def get_tweet_hkey(tweet_id):
     return "tweet:" + str(tweet_id)
 
@@ -59,6 +70,14 @@ def get_comment_hkey(cmt_id):
     return "cmt:" + str(cmt_id)
 
 
+def get_noti_hkey(noti_id):
+    return "noti:" + str(noti_id)
+
+
+def get_user_notis_list(user_id):
+    return "notis:" + str(user_id)
+
+
 class RedisModel(object):
 
     def __init__(self, config):
@@ -76,6 +95,45 @@ class RedisModel(object):
 
     def flush_db(self):
         self.r.flushdb()
+
+    ############# NOTIFICATION ##############
+
+    def set_new_noti_id(self):
+        if self.r.get(NEW_NOTI_ID) is None:
+            self.r.set(NEW_NOTI_ID, 0)
+        return self.r.incr(NEW_NOTI_ID)
+
+    def add_noti(self, uid, creator, ntype, read=False, tweet=None):
+        # called by add_followers and add_comment
+        noti_id = self.set_new_noti_id()
+        ntime = time.time()
+        if tweet:
+            self.r.hmset(get_noti_hkey(noti_id), {NOTI_CREATOR: creator, NOTI_TYPE: ntype, NOTI_TIME: ntime, NOTI_READ: read, NOTI_TWEET: tweet})
+        else:
+            self.r.hmset(get_noti_hkey(noti_id), {NOTI_CREATOR: creator, NOTI_TYPE: ntype, NOTI_TIME: ntime, NOTI_READ: read})
+        self.r.lpush(get_user_notis_list(uid), noti_id)
+
+    def get_unread_notis(self, uid):
+        notis = self.r.lrange(get_user_notis_list(uid), 0, -1)
+        return [self.get_noti(nid) for nid in notis if self.r.hget(get_noti_hkey(nid), NOTI_READ) != "True"]
+
+    def get_noti(self, nid):
+        hkeys = self.r.hkeys(get_noti_hkey(nid))
+        noti = {'noti_id': nid}
+        for k in hkeys:
+            val = self.r.hget(get_noti_hkey(nid), k)
+            if k == NOTI_TIME:
+                noti[k] = common.format_datetime(float(val))
+            else:
+                noti[k] = unicode(val, "utf8")
+            if k == NOTI_CREATOR:
+                noti['creator_name'] = self.get_username(val)
+        return noti
+
+    def set_read_noti(self, nid):
+        self.r.hset(get_noti_hkey(nid), NOTI_READ, True)
+
+    ############# S3 CONNECTION ##############
 
     def get_s3_filename(self, filename):
         if filename == self.config['DEFAULT_AVA']:
@@ -95,6 +153,8 @@ class RedisModel(object):
 
     def s3_delete(self, bucket, filename):
         self.conn.Object(bucket, self.get_s3_filename(filename)).delete()
+
+    ############# TWEETS MODEL ##############
 
     def set_new_tweet_id(self):
         if self.r.get(NEW_TWEET_ID) is None:
@@ -211,6 +271,8 @@ class RedisModel(object):
             twits.append(tweet)
         return (twits, more_tweet)
 
+    ############# USER MODEL ##############
+
     def get_user_from_tweet(self, tweet_id):
         return self.r.hget(get_tweet_hkey(tweet_id), TWEET_USER)
 
@@ -296,11 +358,14 @@ class RedisModel(object):
             self.r.hset(HUSERALIAS, new_alias, uid)
             self.r.hmset(get_user_hkey(uid), {USER_ALIAS: new_alias})
 
+    ############# FOLLOWING ##############
+
     def add_follower(self, follower, followee):
         if follower == followee:
             return 0
         self.r.sadd(get_user_followers_hkey(followee), follower)
         self.r.sadd(get_user_followings_hkey(follower), followee)
+        self.add_noti(followee, follower, FOLLOW_NOTI)
         return 1
 
     def remove_follower(self, follower, followee):
@@ -326,6 +391,8 @@ class RedisModel(object):
     def check_followed(self, follower, followee):
         return followee in self.get_following_ids(follower)
 
+    ############# COMMENTS ##############
+
     def set_new_comment_id(self):
         if self.r.get(NEW_COMMENT_ID) is None:
             self.r.set(NEW_COMMENT_ID, 0)
@@ -335,6 +402,7 @@ class RedisModel(object):
         cmt_id = self.set_new_comment_id()
         self.r.rpush(get_tweet_comments_list(tweet_id), cmt_id)
         self.r.hmset(get_comment_hkey(cmt_id), {COMMENT_USER: userid, COMMENT_CONTENT: comment_content, COMMENT_TIME: time.time()})
+        self.add_noti(self.get_user_from_tweet(tweet_id), userid, COMMENT_NOTI, tweet=tweet_id)
 
     def remove_comment(self, tweet_id, cmt_id):
         self.r.delete(get_comment_hkey(cmt_id))

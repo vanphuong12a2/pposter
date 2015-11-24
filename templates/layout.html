@@ -7,6 +7,7 @@
         <script src="{{url_for('static', filename='jquery-1.11.3.min.js')}}"></script>
         <script src="{{url_for('static', filename='jquery-migrate-1.2.1.min.js')}}"></script>
         <script src="{{url_for('static', filename='bootstrap.min.js')}}"></script>
+        <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
     </head>
     <body>
         <div class="page container">
@@ -22,6 +23,7 @@
                     {% if g.curr_user %}
                         <a href="{{ url_for('user_timeline', useralias=g.curr_user['alias'])}}">{{ g.curr_user['name'] }}</a>
                         |<a href="{{ url_for('timeline') }}">home</a>
+                        |<a href="javascript:void(0)" onclick="getNoti()">notification</a>
                         |<a href="{{ url_for('logout') }}">log out</a>
                     {% endif %}
                     </div>

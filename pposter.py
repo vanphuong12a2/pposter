@@ -7,6 +7,43 @@ Developer: Phuong Nguyen
 Date: 10 Nov 2015
 """
 
+
+# set this variable to "threading", "eventlet" or "gevent" to test the
+# different async modes, or leave it set to None for the application to choose
+# the best option based on available packages.
+async_mode = None
+
+if async_mode is None:
+    try:
+        import eventlet
+        assert eventlet
+        async_mode = 'eventlet'
+    except ImportError:
+        pass
+
+    if async_mode is None:
+        try:
+            from gevent import monkey
+            assert monkey
+            async_mode = 'gevent'
+        except ImportError:
+            pass
+
+    if async_mode is None:
+        async_mode = 'threading'
+
+    print('async_mode is ' + async_mode)
+
+# monkey patching is necessary because this application uses a background
+# thread
+if async_mode == 'eventlet':
+    import eventlet
+    eventlet.monkey_patch()
+elif async_mode == 'gevent':
+    from gevent import monkey
+    monkey.patch_all()
+
+
 from flask import Flask, g, url_for, render_template, request, redirect, flash, session, abort
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
@@ -15,6 +52,9 @@ from apiclient.discovery import build
 from flask_jsglue import JSGlue
 from model.redis_model import RedisModel
 import lib.common as common
+from lib.mysocket import MySocket
+from flask_socketio import join_room
+
 
 jsglue = JSGlue()
 app = Flask(__name__)
@@ -23,6 +63,10 @@ app.config.from_object('config.config')
 app.config.from_envvar('PPOSTER_SETTINGS', silent=True)
 
 model = RedisModel(app.config)
+my_socket = MySocket(app, async_mode)
+socketio = my_socket.get_socketio()
+#socketio = SocketIO(app, async_mode=async_mode)
+thread = None
 
 
 @app.before_request
@@ -31,6 +75,13 @@ def before_request():
     g.curr_user = None
     if 'user_id' in session:
         g.curr_user = {'name': model.get_username(session['user_id']), 'alias': model.get_useralias(session['user_id'])}
+
+
+@socketio.on('join', namespace='/noti')
+def join():
+    if 'user_id' in session:
+        join_room(session['user_id'])
+        g.joined_room = True
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -124,7 +175,9 @@ def timeline():
             session.pop(key)
     lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
     tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0, anchor=param['anchor'])
-    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, error=param['error'])
+    model.set_read_noti(11)
+    unread_notis = model.get_unread_notis(session['user_id'])
+    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, notis=unread_notis, error=param['error'])
 
 
 @app.route('/<useralias>')
@@ -171,7 +224,10 @@ def follow(useralias):
     if g.curr_user is None:
         return render_template('login.html')
     uid = model.get_userid(useralias)
+    if session['user_id'] == uid:
+        return redirect(url_for('timeline'))
     model.add_follower(session['user_id'], uid)
+    my_socket.noti_emit("demo!!!", room=uid)
     return redirect(url_for('user_timeline', useralias=useralias))
 
 
@@ -180,6 +236,8 @@ def unfollow(useralias):
     if g.curr_user is None:
         return render_template('login.html')
     uid = model.get_userid(useralias)
+    if session['user_id'] == uid:
+        return redirect(url_for('timeline'))
     model.remove_follower(session['user_id'], uid)
     return redirect(url_for('user_timeline', useralias=useralias))
 
@@ -305,8 +363,14 @@ def add_comment(useralias=None):
         return redirect(url_for('timeline', _anchor=tweet_id))
 
 
+@socketio.on('push noti', namespace='/noti')
+def push_noti(message):
+    my_socket.noti_emit(message['data'])
+
+
 if __name__ == '__main__':
     if app.config['LOCAL']:
-        app.run(debug=app.config['DEBUG'])
+        my_socket.get_socketio().run(app, debug=True)
+        #app.run(debug=app.config['DEBUG'])
     else:
         app.run(host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])
