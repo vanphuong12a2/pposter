@@ -360,6 +360,20 @@ def add_tweet(useralias=None):
         return redirect(url_for('user_timeline', useralias=useralias))
 
 
+@app.route('/re_tweet', methods=['GET'])
+def re_tweet():
+    if g.curr_user is None:
+        return render_template('login.html')
+    if 'tweet_id' not in request.args:
+        return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
+    tweet_id = request.args['tweet_id']
+    if model.get_user_from_tweet(tweet_id) == session['user_id']:
+        flash("Illegal access")
+        return redirect(url_for('timeline'))
+    model.add_retweet(session['user_id'], tweet_id)
+    return redirect(url_for('timeline'))
+
+
 @app.route('/remove_tweet', methods=['GET'])
 @app.route('/<useralias>/remove_tweet')
 def remove_tweet(useralias=None):
@@ -443,4 +457,4 @@ if __name__ == '__main__':
         my_socket.get_socketio().run(app, debug=True)
         #app.run(debug=app.config['DEBUG'])
     else:
-        app.run(host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])
+        my_socket.get_socketio().run(app, host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])

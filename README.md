@@ -8,15 +8,19 @@ A mock Twitter project developed using Flask
 # Install
 - Clone the pposter project
         
-        cd pposter
+- Create environment
+
         mkdir env
         virtualenv env
         source env/bin/activate
-        pip install -r config/requirements.txt
+        pip install -r requirements.txt
 
 
 # Configuation
 - Config file is in `config/config.py` 
+
+# Run
+        make run
 
 # Deploy
 

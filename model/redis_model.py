@@ -176,7 +176,7 @@ class RedisModel(object):
     def get_s3_filename(self, filename):
         if filename == self.config['DEFAULT_AVA']:
             return filename
-        if self.config['TEST']:
+        if self.config['TESTING']:
             filename = 'db' + str(self.config['REDIS_TEST_DB']) + '_' + filename
         else:
             filename = 'db' + str(self.config['REDIS_DB']) + '_' + filename
@@ -229,6 +229,9 @@ class RedisModel(object):
                 self.r.lpush(HASHTAGS, tag)
             self.r.lpush(get_hashtag_list(tag), tweet_id)
         return tweet_id
+
+    def add_retweet(self, uid, tweet_id):
+        pass
 
     def get_comment_ids(self, tweet_id):
         return self.r.lrange(get_tweet_comments_list(tweet_id), 0, -1)

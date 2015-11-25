@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 """
 Unittest module for pposter.py
 Owner: Phuong Nguyen
@@ -280,36 +281,37 @@ class PposterTestCase(unittest.TestCase):
         #Login/add tweets + follow few ppl with tweets
         for i in range(3):
             self.success_login('user' + str(i))
-            rv = self.add_tweet('Test tweet from #' + str(i + 1), (StringIO('fake image'), 'image.png'), 'user100' + str(i + 1))
+            rv = self.add_tweet('Test tweet from @' + str(i + 1), (StringIO('fake image'), 'image.png'), 'user100' + str(i + 1))
             self.logout()
         self.success_login('test')
         rv = self.app.get('/user1001/follow', follow_redirects=True)
         rv = self.app.get('/user1002/follow', follow_redirects=True)
         #PART1: Home timeline
         rv = self.app.get('/')
-        assert 'Test tweet from #1' in rv.data
-        assert 'Test tweet from #2' in rv.data
-        assert 'Test tweet from #3' not in rv.data
+        #print rv.data
+        assert 'Test tweet from @1' in rv.data
+        assert 'Test tweet from @2' in rv.data
+        assert 'Test tweet from @3' not in rv.data
 
         rv = self.app.get('/public')
-        assert 'Test tweet from #1' in rv.data
-        assert 'Test tweet from #2' in rv.data
-        assert 'Test tweet from #3' in rv.data
+        assert 'Test tweet from @1' in rv.data
+        assert 'Test tweet from @2' in rv.data
+        assert 'Test tweet from @3' in rv.data
 
         rv = self.app.get('/user1004')
-        assert 'Test tweet from #1' not in rv.data
-        assert 'Test tweet from #2' not in rv.data
-        assert 'Test tweet from #3' not in rv.data
+        assert 'Test tweet from @1' not in rv.data
+        assert 'Test tweet from @2' not in rv.data
+        assert 'Test tweet from @3' not in rv.data
 
         #PART2: User timeline
         rv = self.app.get('/user1001')
-        assert 'Test tweet from #1' in rv.data
-        assert 'Test tweet from #2' not in rv.data
+        assert 'Test tweet from @1' in rv.data
+        assert 'Test tweet from @2' not in rv.data
 
         rv = self.app.get('/user1001/unfollow', follow_redirects=True)
         rv = self.app.get('/')
-        assert 'Test tweet from #1' not in rv.data
-        assert 'Test tweet from #2' in rv.data
+        assert 'Test tweet from @1' not in rv.data
+        assert 'Test tweet from @2' in rv.data
 
     def test_update_info(self):
         rv = self.update_info('user1001', 'phuong', 'user1001')
@@ -378,11 +380,11 @@ class PposterTestCase(unittest.TestCase):
         assert 'cmt content' in rv.data
         rv = self.add_comment(2, 'nothing')
         assert 'nothing' not in rv.data
-        rv = self.add_comment(1, 'cmt content #3', 'user1001')
-        assert 'cmt content #3' in rv.data
+        rv = self.add_comment(1, 'cmt content @3', 'user1001')
+        assert 'cmt content @3' in rv.data
         assert 'user1001' in rv.data
-        rv = self.add_comment(1, 'cmt content #4', 'user1002')
-        assert 'cmt content #4' not in rv.data
+        rv = self.add_comment(1, 'cmt content @4', 'user1002')
+        assert 'cmt content @4' not in rv.data
         rv = self.app.get('/public')
         assert 'cmt content' in rv.data
         rv = self.app.get('/user1001')
