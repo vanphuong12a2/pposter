@@ -7,20 +7,22 @@ A mock Twitter project developed using Flask
 
 # Install
 - Clone the pposter project
-- cd pposter
-- mkdir env
-- virtualenv env
-- source env/bin/activate
-- pip install -r config/requirements.txt
+        
+        cd pposter
+        mkdir env
+        virtualenv env
+        source env/bin/activate
+        pip install -r config/requirements.txt
+
 
 # Configuation
-- Config file is in config/config.py 
+- Config file is in `config/config.py` 
 
 # Deploy
 
-uWsgiconfig: pposter.ini
+uWsgi config: `pposter.ini`
 
-nginx config:
+nginx https config:
 ```
 server{
         listen               443;
