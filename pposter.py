@@ -44,7 +44,7 @@ elif async_mode == 'gevent':
     monkey.patch_all()
 
 
-from flask import Flask, g, url_for, render_template, request, redirect, flash, session, abort
+from flask import Flask, g, url_for, render_template, request, redirect, flash, session, abort, Markup
 from oauth2client.client import flow_from_clientsecrets
 import httplib2
 import json
@@ -172,6 +172,14 @@ def get_noti_url(notis):
                 noti['noti_url'] = url_for('show_tweet', tweet_id=noti['noti_target'], noti=noti['noti_id'])
 
 
+def get_tweet_html(tweet):
+    msg = tweet['tweet_content']
+    tags = {tag for tag in msg.split() if len(tag) > 0 and tag.startswith("#")}
+    for tag in tags:
+        msg = msg.replace(tag, '<a href="' + url_for('public_timeline', tag=tag.strip("#")) + '">' + tag + '</a>')
+    tweet['tweet_html'] = Markup(msg)
+
+
 @app.route('/')
 def timeline():
     if g.curr_user is None:
@@ -184,6 +192,8 @@ def timeline():
             session.pop(key)
     lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
     tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0, anchor=param['anchor'])
+    for tweet in tweets:
+        get_tweet_html(tweet)
     unread_notis = model.get_unread_notis(session['user_id'])
     get_noti_url(unread_notis)
     #TODO: if request.hasgtag => filter tweet
@@ -205,6 +215,8 @@ def user_timeline(useralias):
         if 'noti' in request.args:
             model.set_read_noti(request.args['noti'])
         tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0, anchor=param['anchor'])
+        for tweet in tweets:
+            get_tweet_html(tweet)
         timelineowner = model.get_user_info(uid)
         timelineowner['followed'] = model.check_followed(session['user_id'], uid)
         unread_notis = model.get_unread_notis(session['user_id'])
@@ -228,6 +240,8 @@ def timelinejson(useralias=None):
         else:
             uid = model.get_userid(useralias)
             tweets, more_tweet = model.get_tweets(lusers=[uid], offset=offset)
+        for tweet in tweets:
+            get_tweet_html(tweet)
         return json.dumps({'tweets': render_template('tweets.html', tweets=tweets), 'more_tweet': more_tweet})
     else:
         abort(404)
@@ -293,10 +307,17 @@ def update_userinfo(useralias):
             return redirect(url_for('user_timeline', useralias=useralias))
 
 
-@app.route('/public')
+@app.route('/public', methods=['GET'])
 def public_timeline():
-    tweets, more_tweet = model.get_tweets(offset=0)
-    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet)
+    if 'tag' in request.args:
+        tweets, more_tweet = model.get_tweets(offset=0, tag=request.args['tag'])
+    else:
+        tweets, more_tweet = model.get_tweets(offset=0)
+    for tweet in tweets:
+        get_tweet_html(tweet)
+    trendings = model.get_trending_tags()
+    tags = [{'text': tag, 'url': url_for('public_timeline', tag=tag)} for tag in trendings]
+    return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, tags=tags)
 
 
 @app.route('/public/timelinejson', methods=['GET'])
@@ -304,6 +325,8 @@ def public_timelinejson():
     if 'offset' in request.args:
         offset = int(request.args['offset'])
         tweets, more_tweet = model.get_tweets(offset=offset)
+        for tweet in tweets:
+            get_tweet_html(tweet)
         return json.dumps({'tweets': render_template('tweets.html', tweets=tweets), 'more_tweet': more_tweet})
     else:
         abort(404)

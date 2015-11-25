@@ -1,7 +1,12 @@
 <div class="notis-wrapper">
     {% for noti in all_notis %}
     <small>{{noti['noti_time']}}</small>
+    {% if noti['noti_read'] == 'True' %}
     <div class="noti">{{noti['noti_msg']}}</div>
+    {% else %}
+    <div class="noti-unread">{{noti['noti_msg']}}</div>
+    {% endif %}
+    <!--<a href="{{noti['noti_url']}}">view</a>-->
     {% else %}
     There is no notification so far.
 	{% endfor %}

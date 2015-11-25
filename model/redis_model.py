@@ -105,11 +105,10 @@ class RedisModel(object):
 
     ############# HASHTAG ##############
 
-    def get_trending_hashtags(self):
-        pass
-        # counts = count (ht) for ht in hashtags
-        # get top positions
-        # get top hashtags
+    def get_trending_tags(self):
+        counts = [self.r.llen(get_hashtag_list(ht)) for ht in self.r.lrange(HASHTAGS, 0, -1)]
+        indexes = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)[:5]
+        return [self.r.lindex(HASHTAGS, i) for i in indexes]
 
     ############# NOTIFICATION ##############
 
@@ -153,6 +152,7 @@ class RedisModel(object):
     def get_noti(self, nid):
         nname = get_noti_hkey(nid)
         ntype = self.r.hget(nname, NOTI_TYPE)
+        nread = self.r.hget(nname, NOTI_READ)
         ntime = common.format_datetime(float(self.r.hget(nname, NOTI_TIME)))
         if ntype == FOLLOW_NOTI:
             msg = self.get_username(self.r.hget(nname, NOTI_CREATOR)) + " is following you."
@@ -160,7 +160,7 @@ class RedisModel(object):
         else:
             msg = self.get_username(self.r.hget(get_noti_hkey(nid), NOTI_CREATOR)) + " commented on you tweet."
             url = self.r.hget(get_noti_hkey(nid), NOTI_TWEET)
-        return {NOTI_ID: nid, NOTI_TYPE: ntype, 'noti_msg': msg, 'noti_target': url, NOTI_TIME: ntime}
+        return {NOTI_ID: nid, NOTI_TYPE: ntype, 'noti_msg': msg, 'noti_target': url, NOTI_TIME: ntime, NOTI_READ: nread}
 
     def set_read_noti(self, nid):
         if self.r.hget(get_noti_hkey(nid), NOTI_READ) != "True":
@@ -223,11 +223,11 @@ class RedisModel(object):
             self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_IMG: new_imgname})
         self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_CONTENT: content, TWEET_TIME: ttime, TWEET_USER: user})
         self.r.lpush(TWEETS, tweet_id)
-        # TODO: get set of HASHTAG
-        # if there is hashtag list
-        #   append
-        # else:
-        #    add to hashtags and append to a new list
+        tags = {tag.strip("#") for tag in content.split() if len(tag) > 0 and tag.startswith("#")}
+        for tag in tags:
+            if self.r.llen(get_hashtag_list(tag)) == 0:
+                self.r.lpush(HASHTAGS, tag)
+            self.r.lpush(get_hashtag_list(tag), tweet_id)
         return tweet_id
 
     def get_comment_ids(self, tweet_id):
@@ -251,6 +251,7 @@ class RedisModel(object):
         return comments
 
     def remove_tweet(self, tweet_id):
+        content = self.r.hget(get_tweet_hkey(tweet_id), TWEET_CONTENT)
         #remove comment => remove the img => remove tweet => pop out the tweet list
         for cmt_id in self.get_comment_ids(tweet_id):
             self.remove_comment(tweet_id, cmt_id)
@@ -267,6 +268,13 @@ class RedisModel(object):
         if tweet_id in tweet_ids and tweet_ids.index(tweet_id) > 0:
             next_tweet = tweet_ids[tweet_ids.index(tweet_id) - 1]
         self.r.lrem(TWEETS, 0, tweet_id)
+
+        tags = {tag.strip("#") for tag in content.split() if len(tag) > 0 and tag.startswith("#")}
+        for tag in tags:
+            self.r.lrem(get_hashtag_list(tag), 0, tweet_id)
+            if self.r.llen(get_hashtag_list(tag)) == 0:
+                self.r.lrem(HASHTAGS, 0, tag)
+
         return next_tweet
 
     def get_tweet(self, tweet_id):
@@ -291,9 +299,12 @@ class RedisModel(object):
         tweet[COMMENTS] = self.get_comments(tweet_id)
         return tweet
 
-    def get_tweets(self, lusers=None, offset=None, anchor=None):
+    def get_tweets(self, lusers=None, offset=None, anchor=None, tag=None):
         twits = []
-        tweet_ids = self.r.lrange(TWEETS, 0, -1)
+        if tag is None:
+            tweet_ids = self.r.lrange(TWEETS, 0, -1)
+        else:
+            tweet_ids = self.r.lrange(get_hashtag_list(tag), 0, -1)
         if lusers is not None:
             tweet_ids = [tid for tid in tweet_ids if self.r.hget(get_tweet_hkey(tid), TWEET_USER) in lusers]
         more_tweet = False
@@ -313,6 +324,9 @@ class RedisModel(object):
             tweet = self.get_tweet(tid)
             twits.append(tweet)
         return (twits, more_tweet)
+
+    def get_tweets_from_tag(self, tag):
+        pass
 
     ############# USER MODEL ##############
 

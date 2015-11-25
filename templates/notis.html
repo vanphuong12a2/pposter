@@ -38,6 +38,7 @@
             //var noti = msg.data;
             var noti = JSON.parse(msg.data);
             $('#log .notis').prepend('<div class="noti"><a href="'+ noti['noti_url'] +'">' + noti['noti_msg'] +'</a></div>');
+            $('.notis-wrapper').prepend('<small>' + noti['noti_time'] + '</small><div class="noti-unread">' + noti['noti_msg'] + '</div>')
         	updateCount();
         	updateNotis();
         });

@@ -1,6 +1,17 @@
 {% extends "layout.html" %}
 {% block body %}
 {% if error %}<div class="error bg-danger"><strong>Error:</strong> {{ error }}</div>{% endif %}
+{% if request.endpoint == 'public_timeline' %}
+<h2> Trending hashtags: </h2>
+    <ul>
+        {% for tag in tags %}
+        <li><a href="{{tag['url']}}">#{{tag['text']}}</a></li>
+        {% else %}
+        there is no tag so far
+        {% endfor %}
+    </ul>
+{% endif %}
+
 <div class="row">
     {% if g.curr_user %}
     {% if request.endpoint == 'user_timeline' %}

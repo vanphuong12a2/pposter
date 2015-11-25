@@ -393,3 +393,15 @@ a.tag {
     color: #333;
     margin: 2px auto;
 }
+
+.notis-wrapper .noti-unread {
+    display: block;
+    border: 1px solid #e1e1e1;
+    border-radius: 5px;
+    background-color: #CCFFFF;
+    padding: 10px;
+    color: #333;
+    margin: 2px auto;
+    font-weight: bold;
+}
+
