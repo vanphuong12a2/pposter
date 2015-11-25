@@ -36,6 +36,7 @@ COMMENTS = 'comments'
 
 
 NEW_NOTI_ID = 'new_noti_id'
+NOTI_ID = 'noti_id'
 NOTI_CREATOR = 'noti_creator'
 NOTI_TYPE = 'noti_type'
 NOTI_TWEET = 'noti_tweet'
@@ -44,6 +45,8 @@ NOTI_READ = 'noti_read'
 
 FOLLOW_NOTI = 'follow_noti'
 COMMENT_NOTI = 'comment_noti'
+
+HASHTAGS = 'hashtags'
 
 
 def get_tweet_hkey(tweet_id):
@@ -78,6 +81,10 @@ def get_user_notis_list(user_id):
     return "notis:" + str(user_id)
 
 
+def get_hashtag_list(hashtag):
+    return "hashtag:" + str(hashtag)
+
+
 class RedisModel(object):
 
     def __init__(self, config):
@@ -96,6 +103,14 @@ class RedisModel(object):
     def flush_db(self):
         self.r.flushdb()
 
+    ############# HASHTAG ##############
+
+    def get_trending_hashtags(self):
+        pass
+        # counts = count (ht) for ht in hashtags
+        # get top positions
+        # get top hashtags
+
     ############# NOTIFICATION ##############
 
     def set_new_noti_id(self):
@@ -112,14 +127,19 @@ class RedisModel(object):
         else:
             self.r.hmset(get_noti_hkey(noti_id), {NOTI_CREATOR: creator, NOTI_TYPE: ntype, NOTI_TIME: ntime, NOTI_READ: read})
         self.r.lpush(get_user_notis_list(uid), noti_id)
+        return noti_id
 
     def get_unread_notis(self, uid):
         notis = self.r.lrange(get_user_notis_list(uid), 0, -1)
         return [self.get_noti(nid) for nid in notis if self.r.hget(get_noti_hkey(nid), NOTI_READ) != "True"]
 
-    def get_noti(self, nid):
+    def get_all_notis(self, uid):
+        notis = self.r.lrange(get_user_notis_list(uid), 0, -1)
+        return [self.get_noti(nid) for nid in notis]
+
+    def get_noti_data(self, nid):
         hkeys = self.r.hkeys(get_noti_hkey(nid))
-        noti = {'noti_id': nid}
+        noti = {NOTI_ID: nid}
         for k in hkeys:
             val = self.r.hget(get_noti_hkey(nid), k)
             if k == NOTI_TIME:
@@ -130,8 +150,26 @@ class RedisModel(object):
                 noti['creator_name'] = self.get_username(val)
         return noti
 
+    def get_noti(self, nid):
+        nname = get_noti_hkey(nid)
+        ntype = self.r.hget(nname, NOTI_TYPE)
+        ntime = common.format_datetime(float(self.r.hget(nname, NOTI_TIME)))
+        if ntype == FOLLOW_NOTI:
+            msg = self.get_username(self.r.hget(nname, NOTI_CREATOR)) + " is following you."
+            url = self.r.hget(get_noti_hkey(nid), NOTI_CREATOR)
+        else:
+            msg = self.get_username(self.r.hget(get_noti_hkey(nid), NOTI_CREATOR)) + " commented on you tweet."
+            url = self.r.hget(get_noti_hkey(nid), NOTI_TWEET)
+        return {NOTI_ID: nid, NOTI_TYPE: ntype, 'noti_msg': msg, 'noti_target': url, NOTI_TIME: ntime}
+
     def set_read_noti(self, nid):
-        self.r.hset(get_noti_hkey(nid), NOTI_READ, True)
+        if self.r.hget(get_noti_hkey(nid), NOTI_READ) != "True":
+            self.r.hset(get_noti_hkey(nid), NOTI_READ, True)
+
+    def set_read_notis(self, uid):
+        for nid in self.r.lrange(get_user_notis_list(uid), 0, -1):
+            self.set_read_noti(nid)
+        return 0
 
     ############# S3 CONNECTION ##############
 
@@ -185,6 +223,11 @@ class RedisModel(object):
             self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_IMG: new_imgname})
         self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_CONTENT: content, TWEET_TIME: ttime, TWEET_USER: user})
         self.r.lpush(TWEETS, tweet_id)
+        # TODO: get set of HASHTAG
+        # if there is hashtag list
+        #   append
+        # else:
+        #    add to hashtags and append to a new list
         return tweet_id
 
     def get_comment_ids(self, tweet_id):
@@ -365,8 +408,8 @@ class RedisModel(object):
             return 0
         self.r.sadd(get_user_followers_hkey(followee), follower)
         self.r.sadd(get_user_followings_hkey(follower), followee)
-        self.add_noti(followee, follower, FOLLOW_NOTI)
-        return 1
+        nid = self.add_noti(followee, follower, FOLLOW_NOTI)
+        return nid
 
     def remove_follower(self, follower, followee):
         if follower == followee:
@@ -402,7 +445,8 @@ class RedisModel(object):
         cmt_id = self.set_new_comment_id()
         self.r.rpush(get_tweet_comments_list(tweet_id), cmt_id)
         self.r.hmset(get_comment_hkey(cmt_id), {COMMENT_USER: userid, COMMENT_CONTENT: comment_content, COMMENT_TIME: time.time()})
-        self.add_noti(self.get_user_from_tweet(tweet_id), userid, COMMENT_NOTI, tweet=tweet_id)
+        nid = self.add_noti(self.get_user_from_tweet(tweet_id), userid, COMMENT_NOTI, tweet=tweet_id)
+        return nid
 
     def remove_comment(self, tweet_id, cmt_id):
         self.r.delete(get_comment_hkey(cmt_id))

@@ -163,6 +163,15 @@ def logout():
     return redirect(url_for('timeline'))
 
 
+def get_noti_url(notis):
+    with app.app_context():
+        for noti in notis:
+            if noti['noti_type'] == 'follow_noti':
+                noti['noti_url'] = url_for('user_timeline', useralias=model.get_useralias(noti['noti_target']), noti=noti['noti_id'])
+            else:
+                noti['noti_url'] = url_for('show_tweet', tweet_id=noti['noti_target'], noti=noti['noti_id'])
+
+
 @app.route('/')
 def timeline():
     if g.curr_user is None:
@@ -175,12 +184,13 @@ def timeline():
             session.pop(key)
     lusers = model.get_following_ids(session['user_id']) + [session['user_id']]
     tweets, more_tweet = model.get_tweets(lusers=lusers, offset=0, anchor=param['anchor'])
-    model.set_read_noti(11)
     unread_notis = model.get_unread_notis(session['user_id'])
+    get_noti_url(unread_notis)
+    #TODO: if request.hasgtag => filter tweet
     return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, notis=unread_notis, error=param['error'])
 
 
-@app.route('/<useralias>')
+@app.route('/<useralias>', methods=['GET'])
 def user_timeline(useralias):
     if g.curr_user is None:
         return render_template('login.html')
@@ -192,10 +202,14 @@ def user_timeline(useralias):
             if key in session:
                 param[key] = session[key]
                 session.pop(key)
+        if 'noti' in request.args:
+            model.set_read_noti(request.args['noti'])
         tweets, more_tweet = model.get_tweets(lusers=[uid], offset=0, anchor=param['anchor'])
         timelineowner = model.get_user_info(uid)
         timelineowner['followed'] = model.check_followed(session['user_id'], uid)
-        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet, error=param['error'])
+        unread_notis = model.get_unread_notis(session['user_id'])
+        get_noti_url(unread_notis)
+        return render_template('timeline.html', tweets=tweets, timelineowner=timelineowner, more_tweet=more_tweet, notis=unread_notis, error=param['error'])
     else:
         flash("There is no user with that id")
         return redirect(url_for('timeline'))
@@ -226,8 +240,11 @@ def follow(useralias):
     uid = model.get_userid(useralias)
     if session['user_id'] == uid:
         return redirect(url_for('timeline'))
-    model.add_follower(session['user_id'], uid)
-    my_socket.noti_emit("demo!!!", room=uid)
+    nid = model.add_follower(session['user_id'], uid)
+    noti = model.get_noti(nid)
+    get_noti_url([noti])
+    tosend = json.dumps(noti)
+    my_socket.noti_emit(tosend, room=uid)
     return redirect(url_for('user_timeline', useralias=useralias))
 
 
@@ -268,6 +285,9 @@ def update_userinfo(useralias):
         if new_alias == useralias or not model.check_alias(new_alias):
             model.update_userinfo(session['user_id'], new_name, new_alias)
             return redirect(url_for('user_timeline', useralias=new_alias))
+        elif new_alias[0].isdigit():
+            session['error'] = "Aias should not start with digit"
+            return redirect(url_for('user_timeline', useralias=useralias))
         else:
             session['error'] = "Alias was used!"
             return redirect(url_for('user_timeline', useralias=useralias))
@@ -352,20 +372,47 @@ def add_comment(useralias=None):
         return redirect(url_for('timeline'))
     else:
         tweet_id = request.args['tweet_id']
-        model.add_comment(tweet_id, session['user_id'], comment_content)
-
+        nid = model.add_comment(tweet_id, session['user_id'], comment_content)
+        if session['user_id'] != model.get_user_from_tweet(tweet_id):
+            noti = model.get_noti(nid)
+            get_noti_url([noti])
+            tosend = json.dumps(noti)
+            my_socket.noti_emit(tosend, room=model.get_user_from_tweet(tweet_id))
     session['anchor'] = tweet_id
     session['error'] = error
     if useralias is not None:
-        #TODO: back to the tweet position!!!
         return redirect(url_for('user_timeline', useralias=useralias, _anchor=tweet_id))
     else:
         return redirect(url_for('timeline', _anchor=tweet_id))
 
 
-@socketio.on('push noti', namespace='/noti')
-def push_noti(message):
-    my_socket.noti_emit(message['data'])
+@app.route('/notifications')
+def notifications():
+    if g.curr_user is None:
+        return render_template('login.html')
+    notis = model.get_all_notis(session['user_id'])
+    get_noti_url(notis)
+    unread_notis = model.get_unread_notis(session['user_id'])
+    get_noti_url(unread_notis)
+    return render_template('timeline.html', notis=unread_notis, all_notis=notis)
+
+
+@app.route('/tweet<tweet_id>', methods=['GET'])
+def show_tweet(tweet_id):
+    if g.curr_user is None:
+        return render_template('login.html')
+    if 'noti' in request.args:
+        model.set_read_noti(request.args['noti'])
+    unread_notis = model.get_unread_notis(session['user_id'])
+    get_noti_url(unread_notis)
+    return render_template('timeline.html', tweets=[model.get_tweet(tweet_id)], notis=unread_notis)
+
+
+@socketio.on('mark_read', namespace='/noti')
+def mark_read():
+    res = model.set_read_notis(session['user_id'])
+    if res:
+        my_socket.noti_emit('marked_noti')
 
 
 if __name__ == '__main__':

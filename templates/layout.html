@@ -23,7 +23,13 @@
                     {% if g.curr_user %}
                         <a href="{{ url_for('user_timeline', useralias=g.curr_user['alias'])}}">{{ g.curr_user['name'] }}</a>
                         |<a href="{{ url_for('timeline') }}">home</a>
-                        |<a href="javascript:void(0)" onclick="getNoti()">notification</a>
+                        {% if request.endpoint != 'public_timeline' %}
+                        | <div class="notify-wrapper"><a class="notifications" href="javascript:void(0)" onclick="getNoti()">notifications</a>
+                            <div id="log">
+                                {% include 'notis.html' with context %}
+                            </div>
+                        </div>
+                        {% endif %}
                         |<a href="{{ url_for('logout') }}">log out</a>
                     {% endif %}
                     </div>

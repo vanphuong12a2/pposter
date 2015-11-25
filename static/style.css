@@ -336,3 +336,60 @@ a.tag {
     height: 1px;
     display: block;
 }
+
+.notify-wrapper {
+    display: inline-block;
+    position: relative;
+}
+
+#log {
+       position: absolute;
+    top: 20px;
+    left: 10px;
+    width: 250px;
+    text-align: left;
+    background-color: #fff;
+    padding: 5px 0px 10px;
+    border-radius: 5px;
+    border: 1px solid #d1d1d1;
+        z-index: 1;
+        display: none;
+}
+#log .notis {
+        border-top:1px solid #e1e1e1;
+    border-bottom: 1px solid #e1e1e1;
+    padding: 0px;
+}
+#log .noti {
+    background-color: #e9eaed;
+    color: #333;
+}
+#log .noti a {
+        color: #333;
+    display: block;
+    width: 100%;
+    border-top: 1px solid #e1e1e1;
+    height: 100%;
+    border-bottom: 1px solid #e1e1e1;
+    padding: 5px 10px;
+}
+
+#log .no-noti{    
+    display: none;
+    padding: 5px;
+    border-bottom: 1px solid #e1e1e1;
+}
+.notis-wrapper {
+    display: block;
+    width: 100%;
+}
+
+.notis-wrapper .noti {
+    display: block;
+    border: 1px solid #e1e1e1;
+    border-radius: 5px;
+    background-color: #fff;
+    padding: 10px;
+    color: #333;
+    margin: 2px auto;
+}

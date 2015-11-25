@@ -1,3 +1,67 @@
-{% for noti in notis %}
-<p>{{noti}}</p>
-{% endfor %}
+<a class="mark-read" href="javascript:void(0)">mark read</a>
+<div class="no-noti">there is no unread notification</div>
+<div class="notis" count="0">
+	{% for noti in notis %}
+        <div class="noti"><a href="{{noti['noti_url']}}">{{noti['noti_msg']}}</a></div>
+	{% endfor %}
+</div>
+<a href="{{url_for('notifications')}}">view all notify</a>
+<script type="text/javascript">
+    function updateNotis(){
+                var count = $('#log .notis').attr('count');
+                if(count != 0) {
+                        $('head title').html('(' + count + ') PPoster - a Twitter clone ');
+                        $('.notify-wrapper a.notifications').html('(' + count + ') notifications ');
+                        $('#log a.mark-read').show();
+                        $('#log .notis').show();
+                        $('#log .no-noti').hide();
+                } else {
+                        $('head title').html('PPoster - a Twitter clone ');
+                        $('.notify-wrapper a.notifications').html('notifications ');
+                        $('#log a.mark-read').hide();
+                        $('#log .notis').hide();
+                        $('#log .no-noti').show();
+                }
+        }
+
+	$(document).ready(function(){
+     	namespace = '/noti'; 
+     	// change to an empty string to use the global namespace
+        // the socket.io documentation recommends sending an explicit package upon connection
+        // this is specially important when using the global namespace
+
+        var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+
+        // // event handler for server sent data
+        // // the data is displayed in the "Received" section of the page
+        socket.on('notification', function(msg) {
+            //var noti = msg.data;
+            var noti = JSON.parse(msg.data);
+            $('#log .notis').prepend('<div class="noti"><a href="'+ noti['noti_url'] +'">' + noti['noti_msg'] +'</a></div>');
+        	updateCount();
+        	updateNotis();
+        });
+        {% if not g.joined_room %}
+        socket.emit('join');
+        {% endif %}
+
+
+        function updateCount(){
+        	var count = $('#log .notis').find('.noti').length;
+        	$('#log .notis').attr('count', count);
+        }
+        updateCount();
+        updateNotis();
+        socket.on('marked_noti', function(data) {
+                $('#log .notis').attr('count', 0);
+                updateNotis();
+                });
+        });
+        jQuery(document).on('click', '#log a.mark-read',function(){
+                var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+                socket.emit('mark_read');
+                $('#log .notis').attr('count', 0);
+               updateNotis(); 
+                });
+
+</script>

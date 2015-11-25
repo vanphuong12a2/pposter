@@ -1,0 +1,8 @@
+<div class="notis-wrapper">
+    {% for noti in all_notis %}
+    <small>{{noti['noti_time']}}</small>
+    <div class="noti">{{noti['noti_msg']}}</div>
+    {% else %}
+    There is no notification so far.
+	{% endfor %}
+</div>

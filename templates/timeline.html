@@ -1,75 +1,10 @@
 {% extends "layout.html" %}
 {% block body %}
-<div id="log">
-    {% include 'notis.html' with context %}
-</div>
 {% if error %}<div class="error bg-danger"><strong>Error:</strong> {{ error }}</div>{% endif %}
 <div class="row">
     {% if g.curr_user %}
     {% if request.endpoint == 'user_timeline' %}
-	<div class="col-md-12">
-            <h2>{{timelineowner['user_name']}}</h2>   
-            {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
-            {% if timelineowner['followed'] %}
-            <a class='follow' href="{{url_for('unfollow',useralias=timelineowner['user_alias'])}}">unfollow</a>
-            {% else %}
-            <a class='follow' href="{{url_for('follow',useralias=timelineowner['user_alias'])}}">follow</a>
-            {% endif %}
-            {% endif %}
-	</div> 
-	<div class="col-md-3 col-sm-3 col-xs-12">
-            <div class="col-md-12 avatar">
-                {% if g.test %}
-                <img class="img-responsive" src="{{ url_for('static', filename=timelineowner['user_img']) }}">
-                {% else %}
-                <img class="img-responsive" src="data:image/jpeg;base64,{{timelineowner['user_img']}}"/>
-                {% endif %}
-                {% if g.curr_user['alias'] == timelineowner['user_alias'] %}
-                <a class="change-avatar" href="javascript:void(0)">change avatar</a>
-                <form class="choose-avatar hidden" action="{{url_for('update_avatar', useralias=timelineowner['user_alias'])}}" enctype="multipart/form-data" method=post>
-                    <dl>
-                        <dt>choose:<dd><input type="file" name="avatar"  accept=".jpg,.jpeg,.png"/>
-                    </dl>    
-                    <div class="action">
-                        <input class="btn" type="submit" value="submit" />
-                    </div>
-                </form>
-                {% endif %}
-            </div>
-	</div>
-	<div class="col-md-9 col-sm-9 col-xs-12">
-            <div class="row userinfo">
-                <div class="col-md-12">
-                        <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
-                        <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>
-                        <p><strong>Username: </strong>{{timelineowner['user_name']}}</p>
-                        <p><strong>Alias: </strong>{{timelineowner['user_alias']}}</p>
-                </div>
-                {% if g.curr_user['alias'] != timelineowner['user_alias'] %}
-           </div>
-                {% else %}
-                <div class="col-md-12">
-                        <a href="javascript:void(0)" onclick="updateUserinfo()">updateinfo</a>
-                </div>
-            </div>
-            <div class="row userform">
-                <div class="col-md-12">
-                    <p><strong>Joined: </strong>{{timelineowner['user_joined']}}</p>
-                    <p><strong>Email: </strong>{{timelineowner['user_id']}}</p>    
-                    <form action="{{url_for('update_userinfo', useralias=timelineowner['user_alias'])}}" method=post>
-                        <dl>
-                            <dt>Username:<dd><input class="form-control" type="text" name="name" value="{{timelineowner['user_name']}}" placeholder="user alias" />
-                            <dt>Alias:<dd><input class="form-control" type="text" name="alias" value="{{timelineowner['user_alias']}}" placeholder="status" />
-                        </dl>    
-                        <div class="action">
-                            <input class="btn" type="submit" value="submit" />
-                            <input class="btn" type="button" onclick="cancelUpdateUserinfo()" value="cancel" />
-                        </div>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
-	</div>
+	{% include 'userinfo.html' with context %}
 	{% endif %}
 	{% endif %}
 </div>
@@ -100,6 +35,7 @@
                 </form>
             </div>
         {% endif %}
+		{% if request.endpoint != 'notifications' %}
         <ul class="tweets">
             {% include 'tweets.html' with context %}
         </ul>
@@ -108,71 +44,16 @@
             <button class="loadmore btn">Load more</button>
         </div>
         {% endif %}
+		{% endif %}
     </div>
     {% if request.endpoint == 'user_timeline' and g.curr_user['alias'] == timelineowner['user_alias']%}
-    <div role="tabpanel" class="tab-pane" id="following">
-        {% for fol in timelineowner['followings'] %}
-            <div class="user">              
-                <div class="col-md-3 col-sm-3 col-xs-12">
-                    {% if g.test %}
-                    <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
-                    {% else %}
-                    <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
-                    {% endif %}
-                </div>
-                <div class="col-md-9">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <a href="{{url_for('user_timeline', useralias=fol['user_alias'])}}">{{fol['user_name']}}</a>       
-                        </div>
-                    </div>
-                </div>              
-            </div>
-        {% endfor %}
-    </div>
-
-    <div role="tabpanel" class="tab-pane" id="follower">
-        {% for fol in timelineowner['followers'] %}
-            <div class="user">          
-                <div class="col-md-3 col-sm-3 col-xs-12">
-                    {% if g.test %}
-                    <img class="img-responsive" src="{{ url_for('static', filename=fol['user_img']) }}">
-                    {% else %}
-                    <img class="img-responsive" src="data:image/jpeg;base64,{{fol['user_img']}}"/>
-                    {% endif %}
-                </div>
-                <div class="col-md-9">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <a href="{{url_for('user_timeline', useralias=fol['user_alias'])}}">{{fol['user_name']}}</a>
-                        </div>
-                    </div>
-                </div>            
-            </div>
-        {% endfor %}
-    </div>
+		{% include 'follows.html' with context %}
     {% endif %}
 </div>
+{% if request.endpoint == 'notifications' %}
+	{% include 'allnotis.html' with context %}
+{% endif %}
 <script type="text/javascript">
-    $(document).ready(function(){
-            namespace = '/noti'; // change to an empty string to use the global namespace
-
-
-            // the socket.io documentation recommends sending an explicit package upon connection
-            // this is specially important when using the global namespace
-            var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
-
-            // event handler for server sent data
-            // the data is displayed in the "Received" section of the page
-            socket.on('notification', function(msg) {
-                $('#log').append('<br>Received : ' + msg.data);
-                });
-            {% if not g.joined_room %}
-            socket.emit('join');
-            {% endif %}
-        });
-        
-
     jQuery(document).on('click', 'button.loadmore',function(){
         var offset = jQuery('ul.tweets li').size();
         jQuery.ajax({
@@ -225,6 +106,7 @@
         }
     }
     function getNoti(){
+         $('#log').toggle();
     }
 </script>
 {% endblock %}
