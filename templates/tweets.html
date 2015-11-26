@@ -17,9 +17,13 @@
     {% elif tweet['link'] %}
         share a <a href="{{tweet['link']['url']}}">link</a>
         <div class="share-tweet">
-            <img src="{{tweet['link']['img']}}">  
-            <h2>tweet['link']['title']</h2>    
-            <p>tweet['link']['description']</p>
+	    {% if tweet['link']['img'] %}
+		<img src="{{tweet['link']['img']}}">
+	{% else %}
+            <img src="http://www.paolobugatti.com/img/img-default.png">  
+        {% endif %}    
+	<strong class='stitle'>{{tweet['link']['title']}}</strong>    
+            <p>{{tweet['link']['desc']}}</p>
         </div>		
     {% else %}
     retweet from <a href="{{ url_for('user_timeline', useralias=tweet['org']['user_alias']) }}">{{tweet['org']['user_name']}}</a>'s <a href="{{ url_for('show_tweet', tweet_id=tweet['org']['tweet_id'])}}">tweet</a>

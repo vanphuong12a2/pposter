@@ -48,20 +48,19 @@
         {% endif %}
 
         function showNotify(noti){
-                                            var html = '<div class="new-notify-wrapper"><div class="new-notify">';
-                                                html += '<a href="'+ noti['noti_url'] +'">' + noti['noti_msg'] +'</a>';
-                                                html += '</div></div>';
-                                            $('body').append(html);
-                                            $('.new-notify-wrapper').fadeIn(2000, function(){
-                                                setTimeout(function(){
-                                                    $('.new-notify-wrapper').fadeOut(3000, function(){
-                                                        $('.new-notify-wrapper').remove();
-                                                    })
-                                                }, 4000)
-                                                
-                                            })
-
-                                        }
+            var html = '<div class="new-notify-wrapper"><div class="new-notify">';
+                html += '<a href="'+ noti['noti_url'] +'">' + noti['noti_msg'] +'</a>';
+                html += '</div></div>';
+            $('body').append(html);
+            $('.new-notify-wrapper').fadeIn(2000, function(){
+                setTimeout(function(){
+                    $('.new-notify-wrapper').fadeOut(3000, function(){
+                        $('.new-notify-wrapper').remove();
+                    })
+                }, 4000)
+                
+            })
+        }
         function updateCount(){
         	var count = $('#log .notis').find('.noti').length;
         	$('#log .notis').attr('count', count);

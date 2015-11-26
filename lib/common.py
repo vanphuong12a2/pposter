@@ -1,7 +1,19 @@
+# -*- coding: utf-8 -*-
+
 from datetime import datetime
 from validate_email import validate_email
 import re
 from lepl.apps.rfc3696 import HttpUrl
+from BeautifulSoup import BeautifulSoup
+import urllib
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+
+class MyException(Exception):
+    pass
+
 
 def is_valid_email(email):
     return validate_email(email)
@@ -51,3 +63,13 @@ def is_strong_pass(password):
 def is_url(string):
     validator = HttpUrl()
     return validator(string)
+
+
+def get_url_info(url):
+    try:
+        page = urllib.urlopen(url, timeout=2).read()
+    except:
+        raise MyException("error")
+    soup3 = BeautifulSoup(page)
+    desc = soup3.findAll(attrs={"name": "description"})
+    return soup3.title.string.encode('utf-8'), desc[0]['content'].encode('utf-8')
