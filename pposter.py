@@ -54,6 +54,8 @@ from model.redis_model import RedisModel
 import lib.common as common
 from lib.mysocket import MySocket
 from flask_socketio import join_room
+from BeautifulSoup import BeautifulSoup
+import urllib
 
 
 jsglue = JSGlue()
@@ -174,10 +176,25 @@ def get_noti_url(notis):
 
 def get_tweet_html(tweet):
     msg = tweet['tweet_content']
-    tags = {tag for tag in msg.split() if len(tag) > 0 and tag.startswith("#")}
-    for tag in tags:
-        msg = msg.replace(tag, '<a href="' + url_for('public_timeline', tag=tag.strip("#")) + '">' + tag + '</a>')
-    tweet['tweet_html'] = Markup(msg)
+    if msg != "":
+        tags = {tag for tag in msg.split() if len(tag) > 0 and tag.startswith("#")}
+        for tag in tags:
+            msg = msg.replace(tag, '<a href="' + url_for('public_timeline', tag=tag.strip("#")) + '">' + tag + '</a>')
+        tweet['tweet_html'] = Markup(msg)
+    elif common.is_url(msg):
+        tweet['link'] = {'url': msg}
+        external_sites_html = urllib.request.urlopen(msg)
+        soup = BeautifulSoup(external_sites_html)
+        tweet['link']['title'] = soup.title.string
+        description = soup.find('meta', attrs={'name': 'og:description'}) or soup.find('meta', attrs={'property': 'description'}) or soup.find('meta', attrs={'name': 'description'})
+        if description:
+            tweet['link']['description'] = description.get('content')
+    else:
+        print 'msg',  msg
+        print 'tweet', tweet
+        otweet = model.get_tweet(tweet['org_tweet'])
+        tweet['org'] = otweet
+        get_tweet_html(otweet)
 
 
 @app.route('/')
@@ -367,7 +384,7 @@ def re_tweet():
     if 'tweet_id' not in request.args:
         return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
     tweet_id = request.args['tweet_id']
-    if model.get_user_from_tweet(tweet_id) == session['user_id']:
+    if model.get_user_from_tweet(tweet_id) == session['user_id'] or model.is_retweet(tweet_id):
         flash("Illegal access")
         return redirect(url_for('timeline'))
     model.add_retweet(session['user_id'], tweet_id)
@@ -442,7 +459,9 @@ def show_tweet(tweet_id):
         model.set_read_noti(request.args['noti'])
     unread_notis = model.get_unread_notis(session['user_id'])
     get_noti_url(unread_notis)
-    return render_template('timeline.html', tweets=[model.get_tweet(tweet_id)], notis=unread_notis)
+    tweet = model.get_tweet(tweet_id) 
+    get_tweet_html(tweet)
+    return render_template('timeline.html', tweets=[tweet], notis=unread_notis)
 
 
 @socketio.on('mark_read', namespace='/noti')

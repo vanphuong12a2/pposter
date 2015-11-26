@@ -1,7 +1,7 @@
 from datetime import datetime
 from validate_email import validate_email
 import re
-
+from lepl.apps.rfc3696 import HttpUrl
 
 def is_valid_email(email):
     return validate_email(email)
@@ -46,3 +46,8 @@ def is_strong_pass(password):
     password_ok = not (length_error or digit_error or uppercase_error or lowercase_error or symbol_error)
 
     return password_ok
+
+
+def is_url(string):
+    validator = HttpUrl()
+    return validator(string)

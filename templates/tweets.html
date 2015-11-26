@@ -12,7 +12,21 @@
         </a>
     </strong>
     <small>{{ tweet['tweet_time'] }}</small>
-    {{ tweet['tweet_html'] }}
+    {% if tweet['tweet_html'] %}
+        {{ tweet['tweet_html'] }}
+    {% elif tweet['link'] %}
+        share a <a href="{{tweet['link']['url']}}">link</a>
+        <div class="share-tweet">
+            <img src="{{tweet['link']['img']}}">  
+            <h2>tweet['link']['title']</h2>    
+            <p>tweet['link']['description']</p>
+        </div>		
+    {% else %}
+    retweet from <a href="{{ url_for('user_timeline', useralias=tweet['org']['user_alias']) }}">{{tweet['org']['user_name']}}</a>'s <a href="{{ url_for('show_tweet', tweet_id=tweet['org']['tweet_id'])}}">tweet</a>
+    <div class="retweet">
+        <a href="{{ url_for('user_timeline', useralias=tweet['org']['user_alias']) }}">{{tweet['org']['user_name'] }}</a> {{tweet['org']['tweet_html'] }}
+    </div>		
+    {% endif %}
     {% if tweet['tweet_img']  %}
     <div class="tweet-image">
         {% if g.test %} 
@@ -22,12 +36,18 @@
         {% endif %}
     </div>
     {% endif %}
-    {% if request.endpoint not in ['public_timeline', 'public_timelinejson'] and tweet['user_alias'] == g.curr_user['alias'] %}
+    {% if request.endpoint not in ['public_timeline', 'public_timelinejson'] %}
+		{% if tweet['user_alias'] == g.curr_user['alias'] %}
         {% if request.endpoint == 'user_timeline' %}
         <a class="remove-post"  href="{{url_for('remove_tweet', useralias=timelineowner['user_alias'],tweet_id=tweet['tweet_id'])}}">del</a>
         {% else %}    
         <a class="remove-post"  href="{{url_for('remove_tweet', tweet_id=tweet['tweet_id'])}}">del</a>
-        {% endif %}    
+        {% endif %}  
+        {% else %}
+        {% if tweet['tweet_html'] %}
+	<a class="re-post"  href="{{url_for('re_tweet', tweet_id=tweet['tweet_id'])}}">retweet</a>
+	{% endif %}
+        {% endif %}
     {% endif %}
     <div class="comments">
         {% for comment in tweet['comments'] %}

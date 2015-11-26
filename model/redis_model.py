@@ -14,6 +14,7 @@ TWEET_CONTENT = 'tweet_content'
 TWEET_IMG = 'tweet_img'
 TWEET_TIME = 'tweet_time'
 TWEET_USER = 'tweet_user'
+ORG_TWEET = 'org_tweet'
 
 USERS = 'user_emails'
 USER_NAME = 'user_name'
@@ -110,6 +111,30 @@ class RedisModel(object):
         indexes = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)[:5]
         return [self.r.lindex(HASHTAGS, i) for i in indexes]
 
+    def add_tags(self, tweet_id):
+        content = self.r.hget(get_tweet_hkey(tweet_id), TWEET_CONTENT)
+        if content == "":
+            org_tweet = self.r.hget(get_tweet_hkey(tweet_id), ORG_TWEET)
+            content = self.r.hget(get_tweet_hkey(org_tweet), TWEET_CONTENT)
+        tags = {tag.strip("#") for tag in content.split() if len(tag) > 0 and tag.startswith("#")}
+        for tag in tags:
+            if self.r.llen(get_hashtag_list(tag)) == 0:
+                self.r.lpush(HASHTAGS, tag)
+            self.r.lpush(get_hashtag_list(tag), tweet_id)
+        return 1
+
+    def remove_tags(self, tweet_id):
+        content = self.r.hget(get_tweet_hkey(tweet_id), TWEET_CONTENT)
+        if content == "":
+            org_tweet = self.r.hget(get_tweet_hkey(tweet_id), ORG_TWEET)
+            content = self.r.hget(get_tweet_hkey(org_tweet), TWEET_CONTENT)
+
+        tags = {tag.strip("#") for tag in content.split() if len(tag) > 0 and tag.startswith("#")}
+        for tag in tags:
+            self.r.lrem(get_hashtag_list(tag), 1, tweet_id)
+            if self.r.llen(get_hashtag_list(tag)) == 0:
+                self.r.lrem(HASHTAGS, 0, tag)
+        return 1
     ############# NOTIFICATION ##############
 
     def set_new_noti_id(self):
@@ -223,15 +248,17 @@ class RedisModel(object):
             self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_IMG: new_imgname})
         self.r.hmset(get_tweet_hkey(tweet_id), {TWEET_CONTENT: content, TWEET_TIME: ttime, TWEET_USER: user})
         self.r.lpush(TWEETS, tweet_id)
-        tags = {tag.strip("#") for tag in content.split() if len(tag) > 0 and tag.startswith("#")}
-        for tag in tags:
-            if self.r.llen(get_hashtag_list(tag)) == 0:
-                self.r.lpush(HASHTAGS, tag)
-            self.r.lpush(get_hashtag_list(tag), tweet_id)
+        if content != "":
+            self.add_tags(tweet_id)
         return tweet_id
 
     def add_retweet(self, uid, tweet_id):
-        pass
+        new_tid = self.add_tweet("", uid, img=None)
+        self.r.hset(get_tweet_hkey(new_tid), ORG_TWEET, tweet_id)
+        self.add_tags(new_tid)
+
+    def is_retweet(self, tweet_id):
+        return self.r.hget(get_tweet_hkey(tweet_id), TWEET_CONTENT) == ""
 
     def get_comment_ids(self, tweet_id):
         return self.r.lrange(get_tweet_comments_list(tweet_id), 0, -1)
@@ -254,7 +281,7 @@ class RedisModel(object):
         return comments
 
     def remove_tweet(self, tweet_id):
-        content = self.r.hget(get_tweet_hkey(tweet_id), TWEET_CONTENT)
+        self.remove_tags(tweet_id)
         #remove comment => remove the img => remove tweet => pop out the tweet list
         for cmt_id in self.get_comment_ids(tweet_id):
             self.remove_comment(tweet_id, cmt_id)
@@ -271,13 +298,6 @@ class RedisModel(object):
         if tweet_id in tweet_ids and tweet_ids.index(tweet_id) > 0:
             next_tweet = tweet_ids[tweet_ids.index(tweet_id) - 1]
         self.r.lrem(TWEETS, 0, tweet_id)
-
-        tags = {tag.strip("#") for tag in content.split() if len(tag) > 0 and tag.startswith("#")}
-        for tag in tags:
-            self.r.lrem(get_hashtag_list(tag), 0, tweet_id)
-            if self.r.llen(get_hashtag_list(tag)) == 0:
-                self.r.lrem(HASHTAGS, 0, tag)
-
         return next_tweet
 
     def get_tweet(self, tweet_id):
@@ -327,9 +347,6 @@ class RedisModel(object):
             tweet = self.get_tweet(tid)
             twits.append(tweet)
         return (twits, more_tweet)
-
-    def get_tweets_from_tag(self, tag):
-        pass
 
     ############# USER MODEL ##############
 

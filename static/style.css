@@ -204,6 +204,12 @@ div.page ul.tweets li .remove-post {
     right: 5px;
 }
 
+div.page ul.tweets li .re-post {
+    position: absolute;
+    top: 0px;
+    right: 5px;
+}
+
 #following .user, #follower .user{
     float: left;
     width: 50%;
@@ -405,3 +411,50 @@ a.tag {
     font-weight: bold;
 }
 
+.new-notify-wrapper {
+    display: none;
+    min-width: 250px;
+    min-height: 50px;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background-color: #e9eaed;
+    border-radius: 5px;
+    padding: 10px;
+    z-index: 5px;
+}
+
+.new-notify-wrapper .new-notify {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.new-notify-wrapper .new-notify a {
+    color: #666;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.retweet {
+    border-left: 1px solid #a1a1a1;
+    margin-left: 60px;
+    font-size: 0.9em;
+    padding-left: 10px;
+}
+
+.share-tweet {
+    display: block;
+    width: 100%;
+    border: 1px solid #f1f1f1;
+    height: 150px;
+    overflow: hidden;
+}
+
+.share-tweet img {
+    width: auto;
+    height: 150px;
+    float: left;
+    margin-right: 10px;
+}
