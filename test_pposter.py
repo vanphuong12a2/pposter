@@ -25,7 +25,7 @@ class PposterTestCase(unittest.TestCase):
         #clear teh current database
         pposter.model.flush_db()
 
-    def login(self, email, password):
+    def login(self, email, password='aA1233@222'):
         return self.app.post('/login', data=dict(
             email=email,
             password=password), follow_redirects=True)
@@ -258,6 +258,34 @@ class PposterTestCase(unittest.TestCase):
         rv = self.add_tweet('Tweet with img', img2, 'user1001')
         img2.close()
         assert 'File ext not supported!' in rv.data
+
+    def test_retweet_hashtag(self):
+        rv = self.app.get('/re_tweet?tweet_id=1')
+        assert 'log in' in rv.data
+
+        self.success_login('test')
+        self.add_tweet('Test tweet', (StringIO('fake image'), 'image.png'), 'user1001')
+        rv = self.add_tweet('hash with #demo', (StringIO('fake image'), 'image.png'), 'user1001')
+        assert "#demo</a>" in rv.data
+        self.add_tweet('Test tweet #2nd', (StringIO('fake image'), 'image.png'), 'user1001')
+        rv = self.app.get('/public?tag=demo')
+        assert "hash with" in rv.data
+        rv = self.remove_tweet(3)
+        assert "#2nd" not in rv.data
+        self.logout()
+        self.success_login('test2')
+        rv = self.app.get('/re_tweet?tweet_id=1', follow_redirects=True)
+        assert 'retweet from' in rv.data
+        assert 'Test tweet' in rv.data
+        self.app.get('/re_tweet?tweet_id=2', follow_redirects=True)
+        self.remove_tweet(5)
+        self.logout()
+        self.login('test')
+        self.remove_tweet(5)
+        assert "#demo" not in rv.data
+
+        #test url
+        rv = self.add_tweet('http://www.google.com')
 
     def test_follow_unfollow(self):
         rv = self.app.get('/user1001/follow', follow_redirects=True)

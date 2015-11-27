@@ -67,7 +67,7 @@ def is_url(string):
 
 def get_url_info(url):
     try:
-        page = urllib.urlopen(url, timeout=2).read()
+        page = urllib.urlopen(url).read()
     except:
         raise MyException("error")
     soup3 = BeautifulSoup(page)

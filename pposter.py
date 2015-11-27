@@ -68,6 +68,12 @@ socketio = my_socket.get_socketio()
 #socketio = SocketIO(app, async_mode=async_mode)
 thread = None
 
+RESERVED_ALIASES = ['login', 'register', 'google_auth', 'auth_return', 'logout', 'timelinejson', 'public', 'add_tweet', 're_tweet', 'remove_tweet', 'add_comment', 'notifications']
+
+
+def is_reserved(alias):
+    return alias in RESERVED_ALIASES or alias.startswith('tweet')
+
 
 @app.before_request
 def before_request():
@@ -174,18 +180,27 @@ def get_noti_url(notis):
 
 def get_tweet_html(tweet):
     msg = tweet['tweet_content']
-    url_error = False
-    if common.is_url(msg):
-        tweet['link'] = {'url': msg}
-        try:
-            tweet['link']['title'], tweet['link']['desc'] = common.get_url_info(msg)
-        except:
-            url_error = True
-    if msg != "" or url_error:
-        tags = {tag for tag in msg.split() if len(tag) > 0 and tag.startswith("#")}
-        for tag in tags:
-            msg = msg.replace(tag, '<a href="' + url_for('public_timeline', tag=tag.strip("#")) + '">' + tag + '</a>')
-        tweet['tweet_html'] = Markup(msg)
+    if msg != "":
+        if common.is_url(msg):
+            tweet['link'] = {'url': msg}
+            try:
+                tweet['link']['title'], tweet['link']['desc'] = common.get_url_info(msg)
+            except:
+                tweet['link']['title'], tweet['link']['desc'] = msg, msg
+        else:
+            words = [Markup('<a href="' + url_for('public_timeline', tag=tag.strip("#")) + '">' + tag + '</a>') if tag.startswith("#") else tag for tag in msg.split()]
+            tweet['tweet_html'] = words[0]
+            for w in words[1:]:
+                tweet['tweet_html'] += " " + w
+
+            # this way keeps the org blank but seems like jinja also remove it :(
+            #tags = [(text.index(tag), tag) for tag in text.split() if tag.startswith("#")]
+            #tweet['tweet_html'] = ""
+            #c = 0
+            #for (idx, tag) in tags:
+            #    tweet['tweet_html'] += msg[c:idx] + Markup('<a href="' + url_for('public_timeline', tag=tag.strip("#")) + '">' + tag + '</a>')
+            #    c = idx + len(tag)
+            #tweet['tweet_html'] += msg[c:]
     else:
         otweet = model.get_tweet(tweet['org_tweet'])
         tweet['org'] = otweet
@@ -208,7 +223,6 @@ def timeline():
         get_tweet_html(tweet)
     unread_notis = model.get_unread_notis(session['user_id'])
     get_noti_url(unread_notis)
-    #TODO: if request.hasgtag => filter tweet
     return render_template('timeline.html', tweets=tweets, more_tweet=more_tweet, notis=unread_notis, error=param['error'])
 
 
@@ -308,6 +322,9 @@ def update_userinfo(useralias):
             return redirect(url_for('user_timeline', useralias=g.curr_user['alias']))
         new_name = request.form['name']
         new_alias = request.form['alias']
+        if is_reserved(new_alias):
+            session['error'] = "Alias was reserved!"
+            return redirect(url_for('user_timeline', useralias=useralias))
         if new_alias == useralias or not model.check_alias(new_alias):
             model.update_userinfo(session['user_id'], new_name, new_alias)
             return redirect(url_for('user_timeline', useralias=new_alias))
@@ -454,7 +471,7 @@ def show_tweet(tweet_id):
         model.set_read_noti(request.args['noti'])
     unread_notis = model.get_unread_notis(session['user_id'])
     get_noti_url(unread_notis)
-    tweet = model.get_tweet(tweet_id) 
+    tweet = model.get_tweet(tweet_id)
     get_tweet_html(tweet)
     return render_template('timeline.html', tweets=[tweet], notis=unread_notis)
 
