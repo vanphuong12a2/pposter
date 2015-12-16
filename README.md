@@ -1,5 +1,5 @@
 # pposter
-A mock Twitter project developed using Flask with unittest (coverage: 90%)
+A mock Twitter project developed using Flask with unittest
 
 # Requirentment
 - Redis
@@ -31,9 +31,11 @@ A mock Twitter project developed using Flask with unittest (coverage: 90%)
 uWsgi config: `pposter.ini`
 
 gunicorn: 
+```
         PATH=/path/to/vertual/env/bin
         cd /path/to/pposter
         gunicorn --worker-class eventlet pposter:app
+```
 
 nginx https config: (http listen on port 80 without ssl certificate)
 ```
